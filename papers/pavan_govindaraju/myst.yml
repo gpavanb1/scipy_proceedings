@@ -39,8 +39,3 @@ project:
         - jupyter
         - sklearn1
         - sklearn2
-  exports:
-    - id: pdf
-      format: typst
-      article: main.md
-      output: full_text.pdf
