@@ -296,4 +296,3 @@ f_i(y, t) = f_s(y, t) + \frac{1}{2} \sum_j \left( \frac{\partial g_j(y, t)}{\par
 ```
 
 where $g_j$ are the columns of the diffusion matrix. The second term is the **Stratonovich-to-Itô correction**. In `torchsde`, derivations are performed in the Stratonovich framework to leverage standard calculus, while numerical solvers often operate in the Itô framework, requiring the explicit inclusion of this correction term in the drift dynamics.
-
