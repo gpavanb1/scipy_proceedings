@@ -79,7 +79,7 @@ This enables gradient computation with constant memory cost by solving this equa
 
 ## Implementation
 
-NODEFit is implemented as an open-source Python package built on top of the PyTorch ecosystem. It leverages specialized libraries to handle the numerical integration and gradient computation required for training Neural ODEs and SDEs. By abstracting these complexities, NODEFit makes it remarkably easy to fit complex time-series data to governing differential equations.
+NODEFit is implemented as an open-source Python package built on top of the PyTorch ecosystem. It leverages specialized libraries to handle the numerical integration and gradient computation required for training Neural ODEs and SDEs. By abstracting these complexities, NODEFit makes it remarkably easy to fit complex time-series data to governing differential equations. All plots in this paper were generated using Matplotlib [@matplotlib].
 
 ### Core Dependencies
 
@@ -144,10 +144,10 @@ When converted back to Itô form for numerical stability and implementation, thi
 
 ```{math}
 :label: eq:sde_adjoint
-da(t) = -\left[ a(t) \frac{\partial f}{\partial y} - \sum_j \left( \frac{\partial g_j}{\partial y} \right) \left( a(t) \frac{\partial g_j}{\partial y} \right)^T \right] dt - \sum_j \left( a(t) \frac{\partial g_j}{\partial y} \right) dW_t
+da(t) = -\left[ a(t) \frac{\partial f}{\partial y} - \sum_j \left( a(t) \frac{\partial g_j}{\partial y} \right) \frac{\partial g_j}{\partial y} \right] dt - \sum_j \left( a(t) \frac{\partial g_j}{\partial y} \right) dW_t
 ```
 
-where $g_j$ are the columns of the diffusion matrix $g$. This allows NODEFit to learn diffusion processes with high precision and stability while maintaining a manageable memory footprint. Similar to the deterministic case, the stochastic adjoint avoids storing the full trajectory. However, SDEs require consistent noise across both forward and backward passes. `torchsde` achieves this through a **Virtual Brownian Tree**, which allows for the exact reconstruction of the Brownian motion $W_t$ at any time point using a fixed seed. By reconstructing both the state and the noise during the backward pass, the memory cost remains constant even for complex stochastic trajectories.
+where $g_j$ are the columns of the diffusion matrix $g$. Note that while the standard Stratonovich-to-Itô conversion for a forward SDE includes a $1/2$ factor, this factor is absorbed in the adjoint case because the correction term for the adjoint state $a(t)$ involves two symmetric components that sum together, as derived in @li2020scalable. This allows NODEFit to learn diffusion processes with high precision and stability while maintaining a manageable memory footprint. Similar to the deterministic case, the stochastic adjoint avoids storing the full trajectory. However, SDEs require consistent noise across both forward and backward passes. `torchsde` achieves this through a **Virtual Brownian Tree**, which allows for the exact reconstruction of the Brownian motion $W_t$ at any time point using a fixed seed. By reconstructing both the state and the noise during the backward pass, the memory cost remains constant even for complex stochastic trajectories.
 
 #### Memory Efficiency Comparison
 
@@ -264,6 +264,10 @@ Neural SDE fit on a complex 2D trajectory. The dotted black line represents the 
 
 NODEFit offers a user-friendly and powerful tool for fitting continuous-time models to time-series data. By leveraging Neural ODEs and SDEs, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
 
+## CRediT authorship contribution statement
+
+**Pavan B. Govindaraju**: Conceptualization, Data curation, Formal analysis, Investigation, Methodology, Software, Validation, Visualization, Writing – original draft, Writing – review & editing.
+
 ## Appendix: Stochastic Calculus and the Adjoint Method
 
 The derivation of the stochastic adjoint sensitivity method relies on the choice of stochastic integral. This appendix provides the necessary background on the Itô and Stratonovich formulations.
@@ -296,3 +300,35 @@ f_i(y, t) = f_s(y, t) + \frac{1}{2} \sum_j \left( \frac{\partial g_j(y, t)}{\par
 ```
 
 where $g_j$ are the columns of the diffusion matrix. The second term is the **Stratonovich-to-Itô correction**. In `torchsde`, derivations are performed in the Stratonovich framework to leverage standard calculus, while numerical solvers often operate in the Itô framework, requiring the explicit inclusion of this correction term in the drift dynamics.
+
+It is important to note that for the adjoint SDE (Equation {ref}`eq:sde_adjoint`), the $1/2$ factor is absent. This is because the correction term for the adjoint state $a(t)$ arises from the interaction between the forward state $y(t)$ and the adjoint variable. When converting the augmented system $(y, a)$ to Itô form, the resulting drift correction for $a(t)$ consists of two identical terms from the Stratonovich expansion that sum to unity, effectively canceling the $1/2$ coefficient found in the standard forward conversion formula [@li2020scalable].
+
+#### Mathematical Derivation
+
+To see this mathematically, we use index notation where $y_i$ and $a_i$ denote the components of the state and adjoint (row) vectors. Consider a forward Itô SDE $dy_i = f_i dt + \sum_j g_{i,j} dW_j$. The equivalent Stratonovich drift $\tilde{f}_i$ is:
+
+```{math}
+:label: eq:strat_drift_index
+\tilde{f}_i = f_i - \frac{1}{2} \sum_j \sum_k \frac{\partial g_{i,j}}{\partial y_k} g_{k,j}
+```
+
+The adjoint Stratonovich SDE is $da_i = - \sum_k a_k \frac{\partial \tilde{f}_k}{\partial y_i} dt - \sum_j \sum_k a_k \frac{\partial g_{k,j}}{\partial y_i} \circ dW_j$. To convert this back to Itô form, we identify the adjoint diffusion term $\sigma_{i,j}^{(a)} = - \sum_k a_k \frac{\partial g_{k,j}}{\partial y_i}$. The Itô drift correction $C_{a_i}$ for the adjoint is:
+
+```{math}
+:label: eq:ito_corr_index
+C_{a_i} = \frac{1}{2} \sum_j \left( \sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial a_k} \sigma_{k,j}^{(a)} + \sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial y_k} g_{k,j} \right)
+```
+
+Expanding these terms:
+1. $\sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial a_k} \sigma_{k,j}^{(a)} = \sum_k \left( -\frac{\partial g_{k,j}}{\partial y_i} \right) \left( -\sum_m a_m \frac{\partial g_{m,j}}{\partial y_k} \right) = \sum_m a_m \sum_k \frac{\partial g_{m,j}}{\partial y_k} \frac{\partial g_{k,j}}{\partial y_i}$
+2. $\sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial y_k} g_{k,j} = \sum_k \left( -\sum_m a_m \frac{\partial^2 g_{m,j}}{\partial y_k \partial y_i} \right) g_{k,j} = - \sum_m a_m \sum_k \frac{\partial^2 g_{m,j}}{\partial y_i \partial y_k} g_{k,j}$
+
+Now, we differentiate the Stratonovich drift $\tilde{f}_k$ from @eq:strat_drift_index:
+$\frac{\partial \tilde{f}_k}{\partial y_i} = \frac{\partial f_k}{\partial y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{\partial^2 g_{k,j}}{\partial y_i \partial y_m} g_{m,j} + \frac{\partial g_{k,j}}{\partial y_m} \frac{\partial g_{m,j}}{\partial y_i} \right)$.
+
+Combining everything into the total Itô drift for $a_i$:
+$\mu_{a_i} = - \sum_k a_k \frac{\partial \tilde{f}_k}{\partial y_i} + C_{a_i}$
+$\mu_{a_i} = - \sum_k a_k \left[ \frac{\partial f_k}{\partial y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{\partial^2 g_{k,j}}{\partial y_i \partial y_m} g_{m,j} + \frac{\partial g_{k,j}}{\partial y_m} \frac{\partial g_{m,j}}{\partial y_i} \right) \right] + \frac{1}{2} \sum_j \sum_m a_m \left( \sum_k \frac{\partial g_{m,j}}{\partial y_k} \frac{\partial g_{k,j}}{\partial y_i} - \sum_k \frac{\partial^2 g_{m,j}}{\partial y_i \partial y_k} g_{k,j} \right)$
+
+The terms involving second derivatives $\frac{\partial^2 g}{\partial y^2}$ cancel out, and the terms involving the product of first derivatives $\frac{\partial g}{\partial y} \frac{\partial g}{\partial y}$ add up: $\frac{1}{2} + \frac{1}{2} = 1$. This yields the final Itô drift:
+$\mu_{a_i} = - \sum_k a_k \frac{\partial f_k}{\partial y_i} + \sum_j \sum_k a_k \sum_m \frac{\partial g_{k,j}}{\partial y_m} \frac{\partial g_{m,j}}{\partial y_i}$, which is the component-wise form of Equation {ref}`eq:sde_adjoint`.
