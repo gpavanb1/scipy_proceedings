@@ -39,6 +39,5 @@ project:
   exports:
     - id: pdf
       format: typst
-      template: ./scipy-template
       article: main.md
       output: full_text.pdf
