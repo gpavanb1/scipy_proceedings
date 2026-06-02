@@ -79,7 +79,7 @@ This enables gradient computation with constant memory cost by solving this equa
 
 ## Implementation
 
-NODEFit is implemented as an open-source Python package built on top of the PyTorch ecosystem. It leverages specialized libraries to handle the numerical integration and gradient computation required for training Neural ODEs and SDEs.
+NODEFit is implemented as an open-source Python package built on top of the PyTorch ecosystem. It leverages specialized libraries to handle the numerical integration and gradient computation required for training Neural ODEs and SDEs. By abstracting these complexities, NODEFit makes it remarkably easy to fit complex time-series data to governing differential equations.
 
 ### Core Dependencies
 
@@ -149,6 +149,10 @@ da(t) = -\left[ a(t) \frac{\partial f}{\partial y} - \sum_j \left( \frac{\partia
 
 where $g_j$ are the columns of the diffusion matrix $g$. This allows NODEFit to learn diffusion processes with high precision and stability while maintaining a manageable memory footprint.
 
+### Performance Optimizations
+
+To handle larger datasets and more complex trajectories, we utilized an optimized implementation that inherits from the base `NeuralSDE` and `SDE` classes. This version leverages faster tensor operations for state-time concatenation and an efficient training loop. For the results presented in this paper, we tuned the following hyperparameters: a `batch_size` of 20 for improved gradient estimates and a fixed time step `dt` of 0.1 to balance numerical stability with computational speed.
+
 ### Installation
 
 NODEFit can be installed via pip:
@@ -159,24 +163,22 @@ pip install nodefit
 
 ### Sample Code
 
-The following example demonstrates how to use NODEFit to fit a Neural ODE and a Neural SDE to synthetic time-series data.
+The following example demonstrates how to use NODEFit to fit a Neural SDE to a 2D trajectory with noise, showcasing how the high-level API makes it remarkably easy to fit complex time-series data.
 
 ```python
 import numpy as np
 import torch
 import torch.nn as nn
-from nodefit.neural_ode import NeuralODE
 from nodefit.neural_sde import NeuralSDE
 
 # Set seed for reproducibility
 torch.manual_seed(0)
 np.random.seed(0)
 
-# 1. Neural ODE Example
-# Generate smooth synthetic time-series data (2D)
+# Generate noisy synthetic time-series data (2D)
 t = np.linspace(0, 5, 50)
-y1 = 1.0 + 2.2 * (1 - np.exp(-0.5 * t))
-y2 = 1.0 + 0.6 * (1 - np.exp(-0.5 * t))
+y1 = 1.0 + 2.2 * (1 - np.exp(-0.5 * t)) + np.random.normal(0, 0.1, 50)
+y2 = 1.0 + 0.6 * (1 - np.exp(-0.5 * t)) + np.random.normal(0, 0.1, 50)
 data = np.stack([y1, y2], axis=1)
 
 # Define the drift network (f_theta)
@@ -187,16 +189,6 @@ drift_nn = nn.Sequential(
     nn.Linear(20, 2)
 ).double()
 
-# Initialize and train the ODE model
-ode = NeuralODE(drift_nn, t, data)
-ode.train(num_epochs=500, print_every=100)
-
-# 2. Neural SDE Example
-# Generate noisy synthetic time-series data (2D)
-y1_noisy = y1 + np.random.normal(0, 0.05, 50)
-y2_noisy = y2 + np.random.normal(0, 0.05, 50)
-data_noisy = np.stack([y1_noisy, y2_noisy], axis=1)
-
 # Define the diffusion network (g_theta)
 diffusion_nn = nn.Sequential(
     nn.Linear(3, 20),
@@ -204,9 +196,12 @@ diffusion_nn = nn.Sequential(
     nn.Linear(20, 2)
 ).double()
 
-# Initialize and train the SDE model
-sde = NeuralSDE(drift_nn, diffusion_nn, t, data_noisy, batch_size=10)
-sde.train(num_epochs=300, print_every=10)
+# Initialize and train the SDE model: fitting data is as simple as passing the observations
+sde = NeuralSDE(drift_nn, diffusion_nn, t, data, batch_size=20)
+sde.train(num_epochs=500, print_every=100)
+
+# Extrapolate to future time points
+extrapolated = sde.extrapolate(tf=8, npts=40)
 ```
 
 ## Results
@@ -226,9 +221,18 @@ Neural ODE fit and extrapolation. The dots represent training data, solid lines 
 
 In the stochastic case, we trained a Neural SDE for 300 epochs. The diffusion network learns to capture the noise characteristics of the data. @fig:sde_results illustrates the mean prediction along with the standard deviation (shaded regions) across multiple trajectories. The model successfully captures the underlying trend while quantifying the uncertainty, which increases during extrapolation.
 
-:::{figure} results/sde_results.png
+:::{figure} results/simple_sde_results.png
 :label: fig:sde_results
 Neural SDE fit and extrapolation. The shaded regions represent the standard deviation across 10 trajectories, capturing the learned diffusion process.
+:::
+
+### Fitting Complex Dynamics
+
+We also tested NODEFit on a more complex 2D system with noise. The model was tasked with learning the underlying dynamics and providing robust extrapolations. As shown in @fig:trajectory_results, the Neural SDE successfully recovers the mean trajectory while providing a well-calibrated uncertainty estimate.
+
+:::{figure} results/trajectory_sde_results.png
+:label: fig:trajectory_results
+Neural SDE fit on a complex 2D trajectory. The model captures the multi-dimensional dynamics and provides reliable extrapolations with increasing uncertainty.
 :::
 
 ## Conclusion
