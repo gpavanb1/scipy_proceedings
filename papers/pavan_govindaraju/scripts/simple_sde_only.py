@@ -14,7 +14,7 @@ np.random.seed(0)
 class FastSDE(SDE):
     def __init__(self, drift_nn, diffusion_nn, noise_type="diagonal", sde_type="ito", numerical_method="euler"):
         super().__init__(drift_nn, diffusion_nn, noise_type, sde_type, numerical_method)
-    
+
     def f(self, t, y):
         # Faster way to concatenate t: use y.new_full
         t_tensor = y.new_full((y.shape[0], 1), t)
@@ -30,19 +30,19 @@ class FastNeuralSDE(NeuralSDE):
     def __init__(self, drift_nn: nn.Module, diffusion_nn: nn.Module, t, data, batch_size=2, dt=0.1):
         # Get dtype from the neural network
         dtype = next(drift_nn.parameters()).dtype
-        
+
         # Initialize with standard NeuralSDE
         super().__init__(drift_nn, diffusion_nn, t, data, batch_size)
-        
+
         # Override with FastSDE and correct dtypes
         self.sde = FastSDE(drift_nn, diffusion_nn)
         self.dt = dt
-        
+
         # Ensure all tensors match the NN dtype
         self.t = self.t.to(dtype=dtype)
         self.data = self.data.to(dtype=dtype)
         self.y0 = self.y0.to(dtype=dtype)
-        
+
         # Pre-calculate repeated data to save time in loss()
         self.repeated_data = self.data.unsqueeze(1).repeat(1, self.batch_size, 1).to(DEVICE)
 
@@ -61,7 +61,7 @@ class FastNeuralSDE(NeuralSDE):
         std = self.nn_data.std(dim=1) + 1e-4  # Add epsilon for stability
 
         # Gaussian Negative Log-Likelihood:
-        # We want to maximize the likelihood of the observed 'data' 
+        # We want to maximize the likelihood of the observed 'data'
         # under the distribution N(mu, std^2) produced by the SDE.
         # Loss = 0.5 * [ ((data - mu) / std)^2 + 2 * log(std) ]
         diff = (self.data - mu)
@@ -73,11 +73,11 @@ class FastNeuralSDE(NeuralSDE):
         for i in tqdm(range(num_epochs)):
             self.sde.drift_opt.zero_grad()
             self.sde.diffusion_opt.zero_grad()
-            
+
             # Call loss() only once per iteration
             current_loss = self.loss()
             current_loss.backward()
-            
+
             self.sde.drift_opt.step()
             self.sde.diffusion_opt.step()
 
@@ -112,7 +112,7 @@ def run_simple_sde_example():
 
     # Extrapolate
     extrapolated = sde.extrapolate(tf=8, npts=40)
-    
+
     # Plotting
     plt.figure(figsize=(10, 6))
     t_np = sde.t.cpu().numpy()
@@ -123,14 +123,14 @@ def run_simple_sde_example():
 
     # Plot trained data
     plt.plot(t_np, data_np[:, 0], 'o', label='Trained Data', markersize=4)
-    
+
     # Plot NN solution mean and std (across the batch dimension)
     # nn_data_np shape: (time, batch_size, data_dim)
     mean = np.mean(nn_data_np[:, :, 0], axis=1)
     std = np.std(nn_data_np[:, :, 0], axis=1)
     plt.plot(t_np, mean, '-', label='NN Mean')
     plt.fill_between(t_np, mean - std, mean + std, alpha=0.3, label='NN Std Dev')
-    
+
     # Plot extrapolation mean and std
     ex_mean = np.mean(extra_v[:, :, 0], axis=1)
     ex_std = np.std(extra_v[:, :, 0], axis=1)

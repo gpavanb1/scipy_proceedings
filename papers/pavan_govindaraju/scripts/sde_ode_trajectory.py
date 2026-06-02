@@ -14,7 +14,7 @@ np.random.seed(0)
 class FastSDE(SDE):
     def __init__(self, drift_nn, diffusion_nn, noise_type="diagonal", sde_type="ito", numerical_method="euler"):
         super().__init__(drift_nn, diffusion_nn, noise_type, sde_type, numerical_method)
-    
+
     def f(self, t, y):
         # Faster way to concatenate t: use y.new_full
         t_tensor = y.new_full((y.shape[0], 1), t)
@@ -30,14 +30,14 @@ class FastNeuralSDE(NeuralSDE):
     def __init__(self, drift_nn: nn.Module, diffusion_nn: nn.Module, t, data, batch_size=2, dt=0.1):
         # Get dtype from the neural network
         dtype = next(drift_nn.parameters()).dtype
-        
+
         # Initialize with standard NeuralSDE
         super().__init__(drift_nn, diffusion_nn, t, data, batch_size)
-        
+
         # Override with FastSDE and correct dtypes
         self.sde = FastSDE(drift_nn, diffusion_nn)
         self.dt = dt
-        
+
         # Ensure all tensors match the NN dtype
         self.t = self.t.to(dtype=dtype, device=DEVICE)
         self.data = self.data.to(dtype=dtype, device=DEVICE)
@@ -58,7 +58,7 @@ class FastNeuralSDE(NeuralSDE):
         std = self.nn_data.std(dim=1) + 1e-4  # Add epsilon for stability
 
         # Gaussian Negative Log-Likelihood:
-        # We want to maximize the likelihood of the observed 'data' 
+        # We want to maximize the likelihood of the observed 'data'
         # under the distribution N(mu, std^2) produced by the SDE.
         diff = (self.data - mu)
         nll = 0.5 * (torch.pow(diff / std, 2) + 2 * torch.log(std)).mean()
@@ -69,11 +69,11 @@ class FastNeuralSDE(NeuralSDE):
         for i in tqdm(range(num_epochs)):
             self.sde.drift_opt.zero_grad()
             self.sde.diffusion_opt.zero_grad()
-            
+
             # Call loss() only once per iteration
             current_loss = self.loss()
             current_loss.backward()
-            
+
             self.sde.drift_opt.step()
             self.sde.diffusion_opt.step()
 
@@ -84,11 +84,11 @@ def run_ode_trajectory_sde_example():
     print("Running Optimized Neural SDE on ODE trajectory (with noise)...")
     # Generate smooth synthetic time-series data (2D) - same as ODE example but with noise
     t = np.linspace(0, 5, 50)
-    
+
     # Underlying theoretical trajectory
     y1_theory = 1.0 + 2.2 * (1 - np.exp(-0.5 * t))
     y2_theory = 1.0 + 0.6 * (1 - np.exp(-0.5 * t))
-    
+
     # Noisy observations
     y1 = y1_theory + np.random.normal(0, 0.1, 50)
     y2 = y2_theory + np.random.normal(0, 0.1, 50)
@@ -116,7 +116,7 @@ def run_ode_trajectory_sde_example():
     # Extrapolate
     tf_extra = 8
     extrapolated = sde.extrapolate(tf=tf_extra, npts=40)
-    
+
     # Theoretical extrapolation
     t_extra = np.linspace(0, tf_extra, 100)
     y1_theory_extra = 1.0 + 2.2 * (1 - np.exp(-0.5 * t_extra))
@@ -136,7 +136,7 @@ def run_ode_trajectory_sde_example():
         # Plot trained data
         line, = plt.plot(t_np, data_np[:, i], 'o', label=f'Observed Data {i+1}', markersize=4)
         color = line.get_color()
-        
+
         # Plot theoretical trajectory
         plt.plot(t_extra, theory_extra[i], ':', color='black', alpha=0.6, label=f'Theoretical Mean {i+1}' if i == 0 else "")
 
@@ -146,7 +146,7 @@ def run_ode_trajectory_sde_example():
         std = np.std(nn_data_np[:, :, i], axis=1)
         plt.plot(t_np, mean, '-', color=color, label=f'Predicted Mean {i+1}')
         plt.fill_between(t_np, mean - std, mean + std, color=color, alpha=0.2)
-        
+
         # Plot extrapolation mean and std
         ex_mean = np.mean(extra_v[:, :, i], axis=1)
         ex_std = np.std(extra_v[:, :, i], axis=1)

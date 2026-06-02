@@ -30,7 +30,7 @@ def run_ode_example():
 
     # Extrapolate beyond the training range
     extrapolated = ode.extrapolate(tf=10, npts=50)
-    
+
     # Plot and save
     ode.plot(extra_data=extrapolated)
     plt.savefig('ode_results.png')
