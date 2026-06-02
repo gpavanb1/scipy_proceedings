@@ -100,7 +100,7 @@ The gradient with respect to the model parameters $\theta$ is then computed as:
 \frac{d\mathcal{L}}{d\theta} = -\int_{t_1}^{t_0} a(t)^T \frac{\partial f(y(t), t, \theta)}{\partial \theta} dt
 ```
 
-This enables the training of complex models on large time-series datasets that would otherwise be computationally prohibitive.
+This enables the training of complex models on large time-series datasets that would otherwise be computationally prohibitive. The memory efficiency stems from the fact that the adjoint method does not require storing intermediate states $y(t)$ from the forward pass. Instead, the original ODE is solved backwards in time alongside the adjoint equation, reconstructing the state $y(t)$ on the fly. This reduces the memory complexity from $O(N)$, where $N$ is the number of solver steps, to $O(1)$ relative to the trajectory length.
 
 #### torchsde
 For stochastic systems, NODEFit integrates `torchsde` [@li2020scalable]. Stochastic Differential Equations present unique challenges, particularly in ensuring consistent Brownian motion across multiple steps and handling the nuances of stochastic calculus. 
@@ -147,7 +147,22 @@ When converted back to Itô form for numerical stability and implementation, thi
 da(t) = -\left[ a(t) \frac{\partial f}{\partial y} - \sum_j \left( \frac{\partial g_j}{\partial y} \right) \left( a(t) \frac{\partial g_j}{\partial y} \right)^T \right] dt - \sum_j \left( a(t) \frac{\partial g_j}{\partial y} \right) dW_t
 ```
 
-where $g_j$ are the columns of the diffusion matrix $g$. This allows NODEFit to learn diffusion processes with high precision and stability while maintaining a manageable memory footprint.
+where $g_j$ are the columns of the diffusion matrix $g$. This allows NODEFit to learn diffusion processes with high precision and stability while maintaining a manageable memory footprint. Similar to the deterministic case, the stochastic adjoint avoids storing the full trajectory. However, SDEs require consistent noise across both forward and backward passes. `torchsde` achieves this through a **Virtual Brownian Tree**, which allows for the exact reconstruction of the Brownian motion $W_t$ at any time point using a fixed seed. By reconstructing both the state and the noise during the backward pass, the memory cost remains constant even for complex stochastic trajectories.
+
+#### Memory Efficiency Comparison
+
+The primary advantage of the adjoint methods used in NODEFit is the reduction in memory overhead. The following table summarizes the comparison between the naive backpropagation approach and the adjoint-based methods implemented in `torchdiffeq` and `torchsde`.
+
+:::{table} Comparison of memory efficiency and computational trade-offs between naive backpropagation and the adjoint sensitivity method.
+:label: table:memory_comparison
+
+| Feature | Naive Backprop | Adjoint Method (NODEFit) |
+| :--- | :--- | :--- |
+| **Intermediate States** | Stored in memory | Reconstructed on the fly |
+| **Memory Scaling** | $O(N)$ (Linear with steps) | $O(1)$ (Constant with steps) |
+| **Noise (SDEs)** | Must be stored for every step | Regenerated via Virtual Brownian Tree |
+| **Trade-off** | Faster (no reconstruction) | Slower (requires solving backwards) |
+:::
 
 ### Performance Optimizations
 
@@ -228,11 +243,21 @@ Neural SDE fit and extrapolation. The shaded regions represent the standard devi
 
 ### Fitting Complex Dynamics
 
-We also tested NODEFit on a more complex 2D system with noise. The model was tasked with learning the underlying dynamics and providing robust extrapolations. As shown in @fig:trajectory_results, the Neural SDE successfully recovers the mean trajectory while providing a well-calibrated uncertainty estimate.
+We also tested NODEFit on a more complex 2D system with noise. The underlying theoretical trajectories for this system are governed by the following equations:
+
+```{math}
+:label: eq:theoretical_mean
+\begin{aligned}
+y_1(t) &= 1.0 + 2.2(1 - e^{-0.5t}) \\
+y_2(t) &= 1.0 + 0.6(1 - e^{-0.5t})
+\end{aligned}
+```
+
+The model was tasked with learning these underlying dynamics and providing robust extrapolations. As shown in @fig:trajectory_results, the Neural SDE successfully recovers the mean trajectory, closely matching the underlying theoretical dynamics even in the presence of noise. The comparison between the theoretical mean and the predicted mean demonstrates the model's ability to filter out stochastic fluctuations and capture the true governing laws.
 
 :::{figure} results/trajectory_sde_results.png
 :label: fig:trajectory_results
-Neural SDE fit on a complex 2D trajectory. The model captures the multi-dimensional dynamics and provides reliable extrapolations with increasing uncertainty.
+Neural SDE fit on a complex 2D trajectory. The dotted black line represents the underlying theoretical trajectory, while the solid lines and shaded regions show the predicted mean and uncertainty. The model captures the multi-dimensional dynamics and provides reliable extrapolations.
 :::
 
 ## Conclusion

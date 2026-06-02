@@ -84,8 +84,14 @@ def run_ode_trajectory_sde_example():
     print("Running Optimized Neural SDE on ODE trajectory (with noise)...")
     # Generate smooth synthetic time-series data (2D) - same as ODE example but with noise
     t = np.linspace(0, 5, 50)
-    y1 = 1.0 + 2.2 * (1 - np.exp(-0.5 * t)) + np.random.normal(0, 0.1, 50)
-    y2 = 1.0 + 0.6 * (1 - np.exp(-0.5 * t)) + np.random.normal(0, 0.1, 50)
+    
+    # Underlying theoretical trajectory
+    y1_theory = 1.0 + 2.2 * (1 - np.exp(-0.5 * t))
+    y2_theory = 1.0 + 0.6 * (1 - np.exp(-0.5 * t))
+    
+    # Noisy observations
+    y1 = y1_theory + np.random.normal(0, 0.1, 50)
+    y2 = y2_theory + np.random.normal(0, 0.1, 50)
     data = np.stack([y1, y2], axis=1)
 
     # Use float32 for speed
@@ -108,8 +114,14 @@ def run_ode_trajectory_sde_example():
     sde.train(num_epochs=500, print_every=50)
 
     # Extrapolate
-    extrapolated = sde.extrapolate(tf=8, npts=40)
+    tf_extra = 8
+    extrapolated = sde.extrapolate(tf=tf_extra, npts=40)
     
+    # Theoretical extrapolation
+    t_extra = np.linspace(0, tf_extra, 100)
+    y1_theory_extra = 1.0 + 2.2 * (1 - np.exp(-0.5 * t_extra))
+    y2_theory_extra = 1.0 + 0.6 * (1 - np.exp(-0.5 * t_extra))
+
     # Plotting
     plt.figure(figsize=(12, 8))
     t_np = sde.t.cpu().numpy()
@@ -118,16 +130,21 @@ def run_ode_trajectory_sde_example():
     extra_t = extrapolated['time']
     extra_v = extrapolated['values'].detach().cpu().numpy()
 
+    theory_extra = [y1_theory_extra, y2_theory_extra]
+
     for i in range(data_np.shape[1]):
         # Plot trained data
-        line, = plt.plot(t_np, data_np[:, i], 'o', label=f'Trained Data {i+1}', markersize=4)
+        line, = plt.plot(t_np, data_np[:, i], 'o', label=f'Observed Data {i+1}', markersize=4)
         color = line.get_color()
         
+        # Plot theoretical trajectory
+        plt.plot(t_extra, theory_extra[i], ':', color='black', alpha=0.6, label=f'Theoretical Mean {i+1}' if i == 0 else "")
+
         # Plot NN solution mean and std
         # nn_data_np shape: (time, batch_size, data_dim)
         mean = np.mean(nn_data_np[:, :, i], axis=1)
         std = np.std(nn_data_np[:, :, i], axis=1)
-        plt.plot(t_np, mean, '-', color=color, label=f'NN Mean {i+1}')
+        plt.plot(t_np, mean, '-', color=color, label=f'Predicted Mean {i+1}')
         plt.fill_between(t_np, mean - std, mean + std, color=color, alpha=0.2)
         
         # Plot extrapolation mean and std
@@ -138,11 +155,11 @@ def run_ode_trajectory_sde_example():
 
     plt.xlabel('Time')
     plt.ylabel('Value')
-    plt.title('Optimized Neural SDE on ODE Trajectory (with Noise)')
+    plt.title('Neural SDE: Theoretical vs Predicted Mean on Complex Dynamics')
     plt.legend()
-    plt.savefig('sde_ode_trajectory_results.png')
+    plt.savefig('results/trajectory_sde_results.png')
     plt.close()
-    print("Neural SDE on ODE trajectory finished. Plot saved as sde_ode_trajectory_results.png")
+    print("Neural SDE on ODE trajectory finished. Plot saved as results/trajectory_sde_results.png")
 
 if __name__ == "__main__":
     run_ode_trajectory_sde_example()
