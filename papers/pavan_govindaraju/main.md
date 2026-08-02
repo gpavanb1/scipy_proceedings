@@ -1,14 +1,18 @@
 ---
 title: "NODEFit: Fit time-series data with a Neural Differential Equation"
 abstract: |
-  Time-series data often arise from underlying physical, biological, and engineering systems. Traditional regression models frequently ignore the continuous dynamics governing these processes. Neural Ordinary Differential Equations (Neural ODEs) and Neural Stochastic Differential Equations (Neural SDEs) provide a powerful framework for learning these evolution laws directly from observations. This paper introduces NODEFit, an open-source Python package that provides a simple and efficient interface for fitting ODEs and SDEs to measured data. We demonstrate the capabilities of NODEFit in capturing complex dynamics and providing robust extrapolations.
+  Time-series data often arise from underlying physical, biological, and engineering systems governed by continuous dynamics. Standard discrete-time regressors and fixed-form curve fits can interpolate observations yet fail to extrapolate or to represent stochastic structure when the governing equations are unknown. Neural Ordinary Differential Equations (Neural ODEs) and Neural Stochastic Differential Equations (Neural SDEs) learn evolution laws directly from data. This paper introduces NODEFit, an open-source Python package that provides a simple and efficient interface for fitting ODEs and SDEs to measured data. We motivate the approach with examples where conventional methods do not perform well, demonstrate recovery of underlying dynamics on noisy benchmarks, and summarize when practitioners should prefer continuous-time neural models.
 ---
 
 ## Introduction
 
 Physical phenomena are commonly governed by differential equations. Traditional methods for time-series analysis often rely on discrete-time models, which may fail to capture the underlying continuous-time dynamics. Neural Ordinary Differential Equations (Neural ODEs) [@chen2018torchdiffeq] represent a paradigm shift by modeling the latent state evolution as a continuous process.
 
-NODEFit provides a simple Python interface for fitting ODEs and SDEs to measured data, allowing researchers to fit their data directly to the governing physical laws.
+Consider a concrete motivating example where two state variables rise toward distinct steady-state values according to smooth exponential kinetics, and each measurement is corrupted by noise. One might try nonlinear least squares with `scipy.optimize.curve_fit`, specifying a candidate functional form such as a single exponential or logistic. That approach works only when the chosen template matches the true dynamics. 
+
+These failures share a root cause: the models describe values at sampled times rather than information of rates of change that generated the trajectory. Neural Ordinary Differential Equations (Neural ODEs) [@chen2018torchdiffeq] and Neural Stochastic Differential Equations (Neural SDEs) [@li2020scalable; @kidger2021neural] take the opposite view. Instead of fitting $y(t)$ directly, they learn a vector field $f_\theta(y, t)$—and, when needed, a diffusion term $g_\theta(y, t)$—such that integrating forward reproduces the observations. When noise is intrinsic rather than measurement error, a Neural SDE separates drift from diffusion, yielding mean trajectories and uncertainty bands that widen naturally outside the data.
+
+NODEFit packages these ideas for practitioners. It provides a simple Python interface for fitting ODEs and SDEs to measured data, wrapping differentiable solvers and adjoint-based training so that users can focus on specifying a compact neural network for the dynamics rather than on solver internals. Benchmarks in this paper show that this continuous-time formulation recovers the underlying kinetics and extrapolates reliably on the above mentioned motivating example, which polynomial, template-based, and discrete-time alternatives struggle to match without prior knowledge of the governing equations.
 
 ## Methods
 
@@ -220,16 +224,17 @@ extrapolated = sde.extrapolate(tf=8, npts=40)
 ```
 
 ## Results
+(sec:results)=
 
-We evaluated NODEFit on both deterministic and stochastic benchmarks. The models were trained using the Adam optimizer with default learning rates.
+We evaluated NODEFit on both deterministic and stochastic benchmarks drawn from the motivating scenario in the Introduction: coupled states approaching saturation with optional noise. The models were trained using the Adam optimizer with default learning rates. In each case, the goal is not merely to interpolate scattered points but to recover a coherent evolution law that extrapolates beyond $t = 5$. @fig:ode_results through @fig:trajectory_results illustrate settings where conventional curve fitting would require the correct functional template *a priori*, and where treating noise as homoscedastic regression error would misrepresent uncertainty during forecast.
 
 ### Neural ODE Results
 
-For the deterministic case, we trained a Neural ODE for 500 epochs on a 2D system. As shown in @fig:ode_results, the model accurately captures the exponential growth and saturation of the system, providing smooth interpolations and stable extrapolations beyond the training range ($t > 5$).
+For the deterministic case, we first fit the same training data with `scipy.optimize.curve_fit`, using a cubic polynomial ($y = a + bt + ct^2 + dt^3$) fitted independently to each state. The extra flexibility tracks the training window closely, but without a saturation mechanism the extrapolation past $t = 5$ inflects upward rather than leveling off (@fig:ode_results, dashed curves). We then trained a Neural ODE for 1000 epochs on the same 2D system. The learned flow matches the saturating trajectories and continues smoothly toward steady state beyond the training window, without specifying the functional form in advance.
 
 :::{figure} results/ode_results.png
 :label: fig:ode_results
-Neural ODE fit and extrapolation. The dots represent training data, solid lines show the learned dynamics, and dashed lines represent extrapolation.
+Baseline failure and Neural ODE success on coupled saturating kinetics. Dashed curves show `curve_fit` with a cubic polynomial template; solid curves show the Neural ODE integrated through $t = 10$. The vertical dotted line marks the end of training data ($t = 5$).
 :::
 
 ### Neural SDE Results
@@ -263,6 +268,12 @@ Neural SDE fit on a complex 2D trajectory. The dotted black line represents the 
 ## Conclusion
 
 NODEFit offers a user-friendly and powerful tool for fitting continuous-time models to time-series data. By leveraging Neural ODEs and SDEs, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
+
+For practitioners deciding whether to use NODEFit, the central question is whether the data plausibly arise from a smooth, Markovian continuous-time process. If polynomial regression, splines, or `scipy.optimize.curve_fit` with a hand-chosen template already produce stable fits and credible extrapolations, a Neural ODE may be unnecessary. Consider NODEFit when those standard tools leave systematic residuals, extrapolations diverge from physical expectations, or the functional form of the dynamics is unknown. Template-based fits must guess a separate closed-form expression for each channel, whereas a Neural ODE learns a single vector field coupling all states.
+
+When observations are noisy, ask whether the noise reflects measurement error alone or variability intrinsic to the process. Ordinary least squares and deterministic Neural ODEs treat scatter as something to be averaged out. If uncertainty grows with state magnitude or if extrapolated forecasts should carry confidence intervals, a Neural SDE is the more appropriate NODEFit model. The diffusion network learns state-dependent noise alongside the drift.
+
+Network capacity deserves equal attention. The drift and diffusion networks should be the smallest architectures that fit the underlying process. When domain knowledge suggests a low-dimensional manifold or saturating kinetics, prefer shallow networks with smooth activations, as in the examples here. When the mechanism is unknown, treat width and depth as hyperparameters to be validated on held-out time intervals or early/late segments of the series as over-parameterized networks can interpolate noise yet fail to extrapolate. NODEFit's API makes tuning actions easy to perform, such as, swap network sizes, retrain, and compare extrapolations on the same solver settings.
 
 ## CRediT authorship contribution statement
 
