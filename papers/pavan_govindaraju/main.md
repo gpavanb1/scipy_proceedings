@@ -268,6 +268,8 @@ NODEFit offers a user-friendly and powerful tool for fitting continuous-time mod
 
 **Pavan B. Govindaraju**: Conceptualization, Data curation, Formal analysis, Investigation, Methodology, Software, Validation, Visualization, Writing – original draft, Writing – review & editing.
 
+Portions of this work were assisted using generative AI tool - Cursor. The tools were used for drafting text, refining language, or generating code suggestions. All outputs were reviewed, verified, and revised by the author(s), who take full responsibility for the accuracy and integrity of the final content.
+
 ## Appendix: Stochastic Calculus and the Adjoint Method
 
 The derivation of the stochastic adjoint sensitivity method relies on the choice of stochastic integral. This appendix provides the necessary background on the Itô and Stratonovich formulations.
