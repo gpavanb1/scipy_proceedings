@@ -64,25 +64,25 @@ A differentiable ODE solver computes the forward trajectory, and gradients are p
 y(t + \epsilon) = y(t) + \epsilon f(y(t), t, \theta) + O(\epsilon^2)
 ```
 
-By the chain rule, the sensitivity of the loss $\mathcal{L}$ with respect to the state at time $t$, defined as the adjoint state $a(t) = \partial \mathcal{L} / \partial y(t)$, is:
+By the chain rule, the sensitivity of the loss $\mathcal{L}$ with respect to the state at time $t$, defined as the adjoint state $a(t) = ∂ \mathcal{L} / ∂ y(t)$, is:
 
 ```{math}
 :label: eq:chain_rule
-a(t) = \frac{\partial \mathcal{L}}{\partial y(t)} = \frac{\partial \mathcal{L}}{\partial y(t+\epsilon)} \frac{\partial y(t+\epsilon)}{\partial y(t)}
+a(t) = \frac{∂ \mathcal{L}}{∂ y(t)} = \frac{∂ \mathcal{L}}{∂ y(t+\epsilon)} \frac{∂ y(t+\epsilon)}{∂ y(t)}
 ```
 
 Substituting the expansion from @eq:taylor into @eq:chain_rule:
 
 ```{math}
 :label: eq:subst
-a(t) = a(t+\epsilon) \left( I + \epsilon \frac{\partial f(y(t), t, \theta)}{\partial y(t)} \right)
+a(t) = a(t+\epsilon) \left( I + \epsilon \frac{∂ f(y(t), t, \theta)}{∂ y(t)} \right)
 ```
 
 Rearranging and taking the limit $\epsilon \to 0$ yields the adjoint ODE:
 
 ```{math}
 :label: eq:adjoint_deriv
-\frac{da(t)}{dt} = -a(t)^T \frac{\partial f(y(t), t, \theta)}{\partial y}
+\frac{da(t)}{dt} = -a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ y}
 ```
 
 This enables gradient computation with constant memory cost by solving this equation backwards in time.
@@ -96,18 +96,18 @@ NODEFit is implemented as an open-source Python package built on top of the PyTo
 The efficiency and scalability of NODEFit rely on two primary libraries: `torchdiffeq` and `torchsde`.
 
 #### torchdiffeq
-For Ordinary Differential Equations, NODEFit utilizes `torchdiffeq` [@chen2018torchdiffeq]. This library provides a suite of differentiable ODE solvers. A critical feature of `torchdiffeq` is its support for the **adjoint sensitivity method**. Unlike standard backpropagation through the solver's internal operations (which has a memory cost that scales with the number of solver steps), the adjoint method allows for gradient computation with constant memory cost by solving an augmented ODE backwards in time. The adjoint state $a(t) = \partial \mathcal{L} / \partial y(t)$ follows the dynamics:
+For Ordinary Differential Equations, NODEFit utilizes `torchdiffeq` [@chen2018torchdiffeq]. This library provides a suite of differentiable ODE solvers. A critical feature of `torchdiffeq` is its support for the **adjoint sensitivity method**. Unlike standard backpropagation through the solver's internal operations (which has a memory cost that scales with the number of solver steps), the adjoint method allows for gradient computation with constant memory cost by solving an augmented ODE backwards in time. The adjoint state $a(t) = ∂ \mathcal{L} / ∂ y(t)$ follows the dynamics:
 
 ```{math}
 :label: eq:adjoint
-\frac{da(t)}{dt} = -a(t)^T \frac{\partial f(y(t), t, \theta)}{\partial y}
+\frac{da(t)}{dt} = -a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ y}
 ```
 
 The gradient with respect to the model parameters $\theta$ is then computed as:
 
 ```{math}
 :label: eq:grad_theta
-\frac{d\mathcal{L}}{d\theta} = -\int_{t_1}^{t_0} a(t)^T \frac{\partial f(y(t), t, \theta)}{\partial \theta} dt
+\frac{d\mathcal{L}}{d\theta} = -\int_{t_1}^{t_0} a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ \theta} dt
 ```
 
 This enables the training of complex models on large time-series datasets that would otherwise be computationally prohibitive. The memory efficiency stems from the fact that the adjoint method does not require storing intermediate states $y(t)$ from the forward pass. Instead, the original ODE is solved backwards in time alongside the adjoint equation, reconstructing the state $y(t)$ on the fly. This reduces the memory complexity from $O(N)$, where $N$ is the number of solver steps, to $O(1)$ relative to the trajectory length.
@@ -133,28 +133,28 @@ Following the same chain rule logic as in @eq:chain_rule, the sensitivity of the
 
 ```{math}
 :label: eq:strat_adjoint_step
-a(t) = \left( \frac{\partial y(t+\Delta t)}{\partial y(t)} \right)^T a(t+\Delta t)
+a(t) = \left( \frac{∂ y(t+\Delta t)}{∂ y(t)} \right)^T a(t+\Delta t)
 ```
 
 Substituting the derivative of @eq:strat_update:
 
 ```{math}
 :label: eq:strat_adjoint_subst
-a(t) \approx \left( I + \frac{\partial f}{\partial y}^T \Delta t + \sum_j \frac{\partial g_j}{\partial y}^T \Delta W_{t,j} \right) a(t+\Delta t)
+a(t) \approx \left( I + \frac{∂ f}{∂ y}^T \Delta t + \sum_j \frac{∂ g_j}{∂ y}^T \Delta W_{t,j} \right) a(t+\Delta t)
 ```
 
 In the limit $\Delta t \to 0$, this yields the adjoint SDE in Stratonovich form:
 
 ```{math}
 :label: eq:strat_adjoint_sde
-da(t) = -\left( \frac{\partial f}{\partial y} \right)^T a(t) dt - \sum_j \left( \frac{\partial g_j}{\partial y} \right)^T a(t) \circ dW_{t,j}
+da(t) = -\left( \frac{∂ f}{∂ y} \right)^T a(t) dt - \sum_j \left( \frac{∂ g_j}{∂ y} \right)^T a(t) \circ dW_{t,j}
 ```
 
 When converted back to Itô form for numerical stability and implementation, this introduces the **Stratonovich-to-Itô correction** term (see Appendix for details on stochastic calculus and the conversion formula):
 
 ```{math}
 :label: eq:sde_adjoint
-da(t) = -\left[ a(t) \frac{\partial f}{\partial y} - \sum_j \left( a(t) \frac{\partial g_j}{\partial y} \right) \frac{\partial g_j}{\partial y} \right] dt - \sum_j \left( a(t) \frac{\partial g_j}{\partial y} \right) dW_t
+da(t) = -\left[ a(t) \frac{∂ f}{∂ y} - \sum_j \left( a(t) \frac{∂ g_j}{∂ y} \right) \frac{∂ g_j}{∂ y} \right] dt - \sum_j \left( a(t) \frac{∂ g_j}{∂ y} \right) dW_t
 ```
 
 where $g_j$ are the columns of the diffusion matrix $g$. Note that while the standard Stratonovich-to-Itô conversion for a forward SDE includes a $1/2$ factor, this factor is absorbed in the adjoint case because the correction term for the adjoint state $a(t)$ involves two symmetric components that sum together, as derived in @li2020scalable. This allows NODEFit to learn diffusion processes with high precision and stability while maintaining a manageable memory footprint. Similar to the deterministic case, the stochastic adjoint avoids storing the full trajectory. However, SDEs require consistent noise across both forward and backward passes. `torchsde` achieves this through a **Virtual Brownian Tree**, which allows for the exact reconstruction of the Brownian motion $W_t$ at any time point using a fixed seed. By reconstructing both the state and the noise during the backward pass, the memory cost remains constant even for complex stochastic trajectories.
@@ -315,7 +315,7 @@ The relationship between a Stratonovich SDE ($dy = f_s dt + g \circ dW_t$) and a
 
 ```{math}
 :label: eq:ito_strat_conv
-f_i(y, t) = f_s(y, t) + \frac{1}{2} \sum_j \left( \frac{\partial g_j(y, t)}{\partial y} \right) g_j(y, t)
+f_i(y, t) = f_s(y, t) + \frac{1}{2} \sum_j \left( \frac{∂ g_j(y, t)}{∂ y} \right) g_j(y, t)
 ```
 
 where $g_j$ are the columns of the diffusion matrix. The second term is the **Stratonovich-to-Itô correction**. In `torchsde`, derivations are performed in the Stratonovich framework to leverage standard calculus, while numerical solvers often operate in the Itô framework, requiring the explicit inclusion of this correction term in the drift dynamics.
@@ -328,26 +328,26 @@ To see this mathematically, we use index notation where $y_i$ and $a_i$ denote t
 
 ```{math}
 :label: eq:strat_drift_index
-\tilde{f}_i = f_i - \frac{1}{2} \sum_j \sum_k \frac{\partial g_{i,j}}{\partial y_k} g_{k,j}
+\tilde{f}_i = f_i - \frac{1}{2} \sum_j \sum_k \frac{∂ g_{i,j}}{∂ y_k} g_{k,j}
 ```
 
-The adjoint Stratonovich SDE is $da_i = - \sum_k a_k \frac{\partial \tilde{f}_k}{\partial y_i} dt - \sum_j \sum_k a_k \frac{\partial g_{k,j}}{\partial y_i} \circ dW_j$. To convert this back to Itô form, we identify the adjoint diffusion term $\sigma_{i,j}^{(a)} = - \sum_k a_k \frac{\partial g_{k,j}}{\partial y_i}$. The Itô drift correction $C_{a_i}$ for the adjoint is:
+The adjoint Stratonovich SDE is $da_i = - \sum_k a_k \frac{∂ \tilde{f}_k}{∂ y_i} dt - \sum_j \sum_k a_k \frac{∂ g_{k,j}}{∂ y_i} \circ dW_j$. To convert this back to Itô form, we identify the adjoint diffusion term $\sigma_{i,j}^{(a)} = - \sum_k a_k \frac{∂ g_{k,j}}{∂ y_i}$. The Itô drift correction $C_{a_i}$ for the adjoint is:
 
 ```{math}
 :label: eq:ito_corr_index
-C_{a_i} = \frac{1}{2} \sum_j \left( \sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial a_k} \sigma_{k,j}^{(a)} + \sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial y_k} g_{k,j} \right)
+C_{a_i} = \frac{1}{2} \sum_j \left( \sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ a_k} \sigma_{k,j}^{(a)} + \sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ y_k} g_{k,j} \right)
 ```
 
 Expanding these terms:
-1. $\sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial a_k} \sigma_{k,j}^{(a)} = \sum_k \left( -\frac{\partial g_{k,j}}{\partial y_i} \right) \left( -\sum_m a_m \frac{\partial g_{m,j}}{\partial y_k} \right) = \sum_m a_m \sum_k \frac{\partial g_{m,j}}{\partial y_k} \frac{\partial g_{k,j}}{\partial y_i}$
-2. $\sum_k \frac{\partial \sigma_{i,j}^{(a)}}{\partial y_k} g_{k,j} = \sum_k \left( -\sum_m a_m \frac{\partial^2 g_{m,j}}{\partial y_k \partial y_i} \right) g_{k,j} = - \sum_m a_m \sum_k \frac{\partial^2 g_{m,j}}{\partial y_i \partial y_k} g_{k,j}$
+1. $\sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ a_k} \sigma_{k,j}^{(a)} = \sum_k \left( -\frac{∂ g_{k,j}}{∂ y_i} \right) \left( -\sum_m a_m \frac{∂ g_{m,j}}{∂ y_k} \right) = \sum_m a_m \sum_k \frac{∂ g_{m,j}}{∂ y_k} \frac{∂ g_{k,j}}{∂ y_i}$
+2. $\sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ y_k} g_{k,j} = \sum_k \left( -\sum_m a_m \frac{∂^2 g_{m,j}}{∂ y_k ∂ y_i} \right) g_{k,j} = - \sum_m a_m \sum_k \frac{∂^2 g_{m,j}}{∂ y_i ∂ y_k} g_{k,j}$
 
 Now, we differentiate the Stratonovich drift $\tilde{f}_k$ from @eq:strat_drift_index:
-$\frac{\partial \tilde{f}_k}{\partial y_i} = \frac{\partial f_k}{\partial y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{\partial^2 g_{k,j}}{\partial y_i \partial y_m} g_{m,j} + \frac{\partial g_{k,j}}{\partial y_m} \frac{\partial g_{m,j}}{\partial y_i} \right)$.
+$\frac{∂ \tilde{f}_k}{∂ y_i} = \frac{∂ f_k}{∂ y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{∂^2 g_{k,j}}{∂ y_i ∂ y_m} g_{m,j} + \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i} \right)$.
 
 Combining everything into the total Itô drift for $a_i$:
-$\mu_{a_i} = - \sum_k a_k \frac{\partial \tilde{f}_k}{\partial y_i} + C_{a_i}$
-$\mu_{a_i} = - \sum_k a_k \left[ \frac{\partial f_k}{\partial y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{\partial^2 g_{k,j}}{\partial y_i \partial y_m} g_{m,j} + \frac{\partial g_{k,j}}{\partial y_m} \frac{\partial g_{m,j}}{\partial y_i} \right) \right] + \frac{1}{2} \sum_j \sum_m a_m \left( \sum_k \frac{\partial g_{m,j}}{\partial y_k} \frac{\partial g_{k,j}}{\partial y_i} - \sum_k \frac{\partial^2 g_{m,j}}{\partial y_i \partial y_k} g_{k,j} \right)$
+$\mu_{a_i} = - \sum_k a_k \frac{∂ \tilde{f}_k}{∂ y_i} + C_{a_i}$
+$\mu_{a_i} = - \sum_k a_k \left[ \frac{∂ f_k}{∂ y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{∂^2 g_{k,j}}{∂ y_i ∂ y_m} g_{m,j} + \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i} \right) \right] + \frac{1}{2} \sum_j \sum_m a_m \left( \sum_k \frac{∂ g_{m,j}}{∂ y_k} \frac{∂ g_{k,j}}{∂ y_i} - \sum_k \frac{∂^2 g_{m,j}}{∂ y_i ∂ y_k} g_{k,j} \right)$
 
-The terms involving second derivatives $\frac{\partial^2 g}{\partial y^2}$ cancel out, and the terms involving the product of first derivatives $\frac{\partial g}{\partial y} \frac{\partial g}{\partial y}$ add up: $\frac{1}{2} + \frac{1}{2} = 1$. This yields the final Itô drift:
-$\mu_{a_i} = - \sum_k a_k \frac{\partial f_k}{\partial y_i} + \sum_j \sum_k a_k \sum_m \frac{\partial g_{k,j}}{\partial y_m} \frac{\partial g_{m,j}}{\partial y_i}$, which is the component-wise form of Equation {ref}`eq:sde_adjoint`.
+The terms involving second derivatives $\frac{∂^2 g}{∂ y^2}$ cancel out, and the terms involving the product of first derivatives $\frac{∂ g}{∂ y} \frac{∂ g}{∂ y}$ add up: $\frac{1}{2} + \frac{1}{2} = 1$. This yields the final Itô drift:
+$\mu_{a_i} = - \sum_k a_k \frac{∂ f_k}{∂ y_i} + \sum_j \sum_k a_k \sum_m \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i}$, which is the component-wise form of Equation {ref}`eq:sde_adjoint`.
