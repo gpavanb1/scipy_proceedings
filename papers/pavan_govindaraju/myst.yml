@@ -50,3 +50,4 @@ project:
         - jupyter
         - sklearn1
         - sklearn2
+        - chen2018torchdiffeq
