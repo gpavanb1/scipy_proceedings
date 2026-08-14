@@ -180,6 +180,24 @@ The primary advantage of the adjoint methods used in NODEFit is the reduction in
 
 To handle larger datasets and more complex trajectories, we utilized an optimized implementation that inherits from the base `NeuralSDE` and `SDE` classes. This version leverages faster tensor operations for state-time concatenation and an efficient training loop. For the results presented in this paper, we tuned the following hyperparameters: a `batch_size` of 20 for improved gradient estimates and a fixed time step `dt` of 0.1 to balance numerical stability with computational speed.
 
+### Reproducibility and wall-clock timings
+
+The example scripts were run once on a 14-inch 2021 MacBook Pro with an
+Apple M1 Pro chip and 16 GB of memory, running macOS Tahoe 26.3.1. The
+wall-clock times include model initialization, training, extrapolation, and
+plot generation, and are provided as reproducibility information rather than
+as a benchmark. They can vary with software versions and system load.
+
+:::{table} Wall-clock times for the example scripts on the reference laptop.
+:label: table:example_timings
+
+| Example script | Training epochs | Wall-clock time |
+| :--- | ---: | ---: |
+| `simple_ode_only.py` | 1000 | 50.30 s |
+| `simple_sde_only.py` | 1000 | 36.14 s |
+| `sde_ode_trajectory.py` | 500 | 31.70 s |
+:::
+
 ### Installation
 
 NODEFit can be installed via pip:
