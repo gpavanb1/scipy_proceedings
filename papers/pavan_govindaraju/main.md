@@ -39,7 +39,7 @@ We model the latent state evolution as:
 \frac{dy(t)}{dt} = f_\theta(y(t), t)
 ```
 
-where $f_\theta$ is a neural network representing the unknown dynamics.
+where $y(t) \in \mathbb{R}^d$ denotes the system state vector at continuous time $t$, and $f_\theta$ is a neural network parameterized by weights $\theta$ that approximates the unknown continuous vector field (governing dynamics).
 
 ### Stochastic dynamics
 
@@ -50,7 +50,7 @@ For noisy systems, NODEFit supports Neural SDEs [@li2020scalable; @kidger2021neu
 dy = f_\theta(y, t) dt + g_\theta(y, t) dW_t
 ```
 
-where $W_t$ is a Wiener process and $g_\theta$ is a neural network representing the diffusion term.
+where $y$ is the state vector, $t$ is continuous time, $f_\theta(y, t)$ is the drift neural network capturing deterministic trends, $g_\theta(y, t)$ is a neural network parameterizing the diffusion (state-dependent noise amplitude), and $W_t$ represents a standard Wiener process (Brownian motion).
 
 ### Training Objective
 
@@ -61,7 +61,7 @@ Given observations $(t_i, y_i)$, NODEFit minimizes the mean squared error:
 \mathcal{L} = \sum_i ||y_i - \hat{y}(t_i)||^2
 ```
 
-where $\hat{y}(t)$ is produced by the ODE/SDE solver.
+where $\hat{y}(t)$ is the predicted state trajectory produced by the ODE or SDE solver, and $||\cdot||$ denotes the standard Euclidean norm.
 
 ### Backpropagation
 
@@ -86,14 +86,14 @@ Substituting the expansion from @eq:taylor into @eq:chain_rule:
 a(t) = a(t+\epsilon) \left( I + \epsilon \frac{∂ f(y(t), t, \theta)}{∂ y(t)} \right)
 ```
 
-Rearranging and taking the limit $\epsilon \to 0$ yields the adjoint ODE:
+where $I$ is the identity matrix. Rearranging and taking the limit $\epsilon \to 0$ yields the adjoint ODE:
 
 ```{math}
 :label: eq:adjoint_deriv
 \frac{da(t)}{dt} = -a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ y}
 ```
 
-This enables gradient computation with constant memory cost by solving this equation backwards in time.
+Here, $a(t)^T$ denotes the transpose of the adjoint state vector (a row vector representing how sensitive the loss is to perturbations in each state dimension), and $\frac{\partial f(y(t), t, \theta)}{\partial y}$ is the Jacobian matrix representing the partial derivatives of the vector field $f$ with respect to the state $y$. Solving this linear differential equation backwards in time enables gradient computation with constant memory cost.
 
 ## Implementation
 
@@ -111,12 +111,14 @@ For Ordinary Differential Equations, NODEFit utilizes `torchdiffeq` [@chen2018to
 \frac{da(t)}{dt} = -a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ y}
 ```
 
-The gradient with respect to the model parameters $\theta$ is then computed as:
+The gradient with respect to the model parameters $\theta$ is then computed by integrating backwards from the final time $t_1$ to the initial time $t_0$:
 
 ```{math}
 :label: eq:grad_theta
 \frac{d\mathcal{L}}{d\theta} = -\int_{t_1}^{t_0} a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ \theta} dt
 ```
+
+where $\frac{\partial f(y(t), t, \theta)}{\partial \theta}$ represents the partial derivative (Jacobian) of the vector field with respect to the neural network parameters $\theta$.
 
 This enables the training of complex models on large time-series datasets that would otherwise be computationally prohibitive. The memory efficiency stems from the fact that the adjoint method does not require storing intermediate states $y(t)$ from the forward pass. Instead, the original ODE is solved backwards in time alongside the adjoint equation, reconstructing the state $y(t)$ on the fly. This reduces the memory complexity from $O(N)$, where $N$ is the number of solver steps, to $O(1)$ relative to the trajectory length.
 
