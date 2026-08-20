@@ -93,7 +93,7 @@ where $I$ is the identity matrix. Rearranging and taking the limit $\epsilon \to
 \frac{da(t)}{dt} = -a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ y}
 ```
 
-Here, $a(t)^T$ denotes the transpose of the adjoint state vector (a row vector representing how sensitive the loss is to perturbations in each state dimension), and $\frac{\partial f(y(t), t, \theta)}{\partial y}$ is the Jacobian matrix representing the partial derivatives of the vector field $f$ with respect to the state $y$. Solving this linear differential equation backwards in time enables gradient computation with constant memory cost.
+Here, $a(t)^T$ denotes the transpose of the adjoint state vector (a row vector representing how sensitive the loss is to perturbations in each state dimension), and $\frac{∂ f(y(t), t, \theta)}{∂ y}$ is the Jacobian matrix representing the partial derivatives of the vector field $f$ with respect to the state $y$. Solving this linear differential equation backwards in time enables gradient computation with constant memory cost.
 
 ## Implementation
 
@@ -118,7 +118,7 @@ The gradient with respect to the model parameters $\theta$ is then computed by i
 \frac{d\mathcal{L}}{d\theta} = -\int_{t_1}^{t_0} a(t)^T \frac{∂ f(y(t), t, \theta)}{∂ \theta} dt
 ```
 
-where $\frac{\partial f(y(t), t, \theta)}{\partial \theta}$ represents the partial derivative (Jacobian) of the vector field with respect to the neural network parameters $\theta$.
+where $\frac{∂ f(y(t), t, \theta)}{∂ \theta}$ represents the partial derivative (Jacobian) of the vector field with respect to the neural network parameters $\theta$.
 
 This enables the training of complex models on large time-series datasets that would otherwise be computationally prohibitive. The memory efficiency stems from the fact that the adjoint method does not require storing intermediate states $y(t)$ from the forward pass. Instead, the original ODE is solved backwards in time alongside the adjoint equation, reconstructing the state $y(t)$ on the fly. This reduces the memory complexity from $O(N)$, where $N$ is the number of solver steps, to $O(1)$ relative to the trajectory length.
 
