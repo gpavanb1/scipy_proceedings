@@ -14,7 +14,7 @@ When the evolution itself is noisy, the natural continuous-time description is a
 
 [^ito-primer]: Stochastic differential equations and Itô's lemma originate with the Japanese mathematician Kiyosi Itô (1915–2008), who in the 1940s developed a rigorous stochastic integral and, in 1951, the change-of-variable formula now known as Itô's lemma, the stochastic counterpart of the chain rule. These tools later became foundational in mathematical finance: Fischer Black, Myron Scholes, and Robert Merton used them in the early 1970s to derive the Black–Scholes–Merton model for option pricing. Itô spent much of his career at Kyoto University and is widely regarded as the founder of modern stochastic analysis.
 
-Consider a concrete motivating example where two state variables rise toward distinct steady-state values according to smooth exponential kinetics, and each measurement is corrupted by noise. One might try nonlinear least squares with `scipy.optimize.curve_fit`, specifying a candidate functional form such as a single exponential or logistic. That approach works only when the chosen template matches the true dynamics.
+Consider a concrete motivating example where two state variables rise toward distinct steady-state values according to smooth exponential kinetics, and each measurement is corrupted by noise. One might try nonlinear least squares with `scipy.optimize.curve_fit` [@scipy], specifying a candidate functional form such as a single exponential or logistic. That approach works only when the chosen template matches the true dynamics.
 
 These failures share a root cause: the models describe values at sampled times rather than the rates of change that generated the trajectory. Neural ODEs and Neural SDEs take the opposite view. Instead of fitting $y(t)$ directly, they learn a vector field $f_\theta(y, t)$, and, when needed, a diffusion term $g_\theta(y, t)$, such that integrating forward reproduces the observations. When noise is intrinsic rather than measurement error, a Neural SDE separates drift from diffusion, yielding mean trajectories and uncertainty bands that widen naturally outside the data.
 
@@ -97,7 +97,7 @@ Here, $a(t)^T$ denotes the transpose of the adjoint state vector (a row vector r
 
 ## Implementation
 
-NODEFit is implemented as an open-source Python package built on top of the PyTorch ecosystem. It leverages specialized libraries to handle the numerical integration and gradient computation required for training Neural ODEs and SDEs. By abstracting these complexities, NODEFit makes it remarkably easy to fit complex time-series data to governing differential equations. All plots in this paper were generated using Matplotlib [@matplotlib].
+NODEFit is implemented as an open-source Python package built on top of the PyTorch [@paszke2019pytorch] ecosystem. It leverages specialized libraries to handle the numerical integration and gradient computation required for training Neural ODEs and SDEs. By abstracting these complexities, NODEFit makes it remarkably easy to fit complex time-series data to governing differential equations. All plots in this paper were generated using Matplotlib [@matplotlib].
 
 ### Core Dependencies
 
@@ -264,7 +264,7 @@ We evaluated NODEFit on both deterministic and stochastic benchmarks drawn from 
 
 ### Neural ODE Results
 
-For the deterministic case, we first fit the same training data with `scipy.optimize.curve_fit`, using a cubic polynomial ($y = a + bt + ct^2 + dt^3$) fitted independently to each state. The extra flexibility tracks the training window closely, but without a saturation mechanism the extrapolation past $t = 5$ inflects upward rather than leveling off (@fig:ode_results, dashed curves). We then trained a Neural ODE for 1000 epochs on the same 2D system. The learned flow matches the saturating trajectories and continues smoothly toward steady state beyond the training window, without specifying the functional form in advance.
+For the deterministic case, we first fit the same training data with `scipy.optimize.curve_fit` [@scipy], using a cubic polynomial ($y = a + bt + ct^2 + dt^3$) fitted independently to each state. The extra flexibility tracks the training window closely, but without a saturation mechanism the extrapolation past $t = 5$ inflects upward rather than leveling off (@fig:ode_results, dashed curves). We then trained a Neural ODE for 1000 epochs on the same 2D system. The learned flow matches the saturating trajectories and continues smoothly toward steady state beyond the training window, without specifying the functional form in advance.
 
 :::{figure} results/ode_results.png
 :label: fig:ode_results
