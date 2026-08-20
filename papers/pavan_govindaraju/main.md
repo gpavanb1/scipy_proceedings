@@ -125,49 +125,7 @@ This enables the training of complex models on large time-series datasets that w
 #### torchsde
 For stochastic systems, NODEFit integrates `torchsde` [@li2020scalable]. Stochastic Differential Equations present unique challenges, particularly in ensuring consistent Brownian motion across multiple steps and handling the nuances of stochastic calculus.
 
-To derive the stochastic adjoint from first principles, we consider the SDE in Stratonovich form (denoted by the $\circ$ operator). The Stratonovich integral evaluates the integrand at the midpoint of the interval, $g(y, t) \circ dW_t \approx g(y_{t+\Delta t/2}, t+\Delta t/2) \Delta W_t$. This choice ensures that the SDE obeys the standard rules of calculus:
-
-```{math}
-:label: eq:strat_sde
-dy = f(y, t, \theta) dt + g(y, t, \theta) \circ dW_t
-```
-
-Consider a small time step $\Delta t$. The state update is approximately:
-
-```{math}
-:label: eq:strat_update
-y(t + \Delta t) \approx y(t) + f(y(t), t, \theta) \Delta t + g(y(t), t, \theta) \Delta W_t
-```
-
-Following the same chain rule logic as in @eq:chain_rule, the sensitivity of the loss with respect to the state at time $t$ is:
-
-```{math}
-:label: eq:strat_adjoint_step
-a(t) = \left( \frac{∂ y(t+\Delta t)}{∂ y(t)} \right)^T a(t+\Delta t)
-```
-
-Substituting the derivative of @eq:strat_update:
-
-```{math}
-:label: eq:strat_adjoint_subst
-a(t) \approx \left( I + \frac{∂ f}{∂ y}^T \Delta t + \sum_j \frac{∂ g_j}{∂ y}^T \Delta W_{t,j} \right) a(t+\Delta t)
-```
-
-In the limit $\Delta t \to 0$, this yields the adjoint SDE in Stratonovich form:
-
-```{math}
-:label: eq:strat_adjoint_sde
-da(t) = -\left( \frac{∂ f}{∂ y} \right)^T a(t) dt - \sum_j \left( \frac{∂ g_j}{∂ y} \right)^T a(t) \circ dW_{t,j}
-```
-
-When converted back to Itô form for numerical stability and implementation, this introduces the **Stratonovich-to-Itô correction** term (see Appendix for details on stochastic calculus and the conversion formula):
-
-```{math}
-:label: eq:sde_adjoint
-da(t) = -\left[ a(t) \frac{∂ f}{∂ y} - \sum_j \left( a(t) \frac{∂ g_j}{∂ y} \right) \frac{∂ g_j}{∂ y} \right] dt - \sum_j \left( a(t) \frac{∂ g_j}{∂ y} \right) dW_t
-```
-
-where $g_j$ are the columns of the diffusion matrix $g$. Note that while the standard Stratonovich-to-Itô conversion for a forward SDE includes a $1/2$ factor, this factor is absorbed in the adjoint case because the correction term for the adjoint state $a(t)$ involves two symmetric components that sum together, as derived in @li2020scalable. This allows NODEFit to learn diffusion processes with high precision and stability while maintaining a manageable memory footprint. Similar to the deterministic case, the stochastic adjoint avoids storing the full trajectory. However, SDEs require consistent noise across both forward and backward passes. `torchsde` achieves this through a **Virtual Brownian Tree**, which allows for the exact reconstruction of the Brownian motion $W_t$ at any time point using a fixed seed. By reconstructing both the state and the noise during the backward pass, the memory cost remains constant even for complex stochastic trajectories.
+Similar to the deterministic case, the stochastic adjoint sensitivity method avoids storing the full trajectory, enabling gradient computation with constant memory cost. However, SDEs require consistent noise across both forward and backward passes. `torchsde` achieves this through a **Virtual Brownian Tree**, which allows for the exact reconstruction of the Brownian motion $W_t$ at any time point using a fixed seed. By reconstructing both the state and the noise during the backward pass, the memory cost remains constant even for complex stochastic trajectories. For the complete first-principles derivation of the stochastic adjoint and the associated stochastic calculus, see the Appendix.
 
 #### Memory Efficiency Comparison
 
@@ -360,7 +318,53 @@ For a stochastic process $y(t)$ governed by a diffusion term $g(y, t)$, the inte
 1. **Itô Integral** (denoted $g \, dW_t$): Evaluates the integrand at the **left endpoint** $t$. Because the integrand is evaluated before the noise increment $dW_t$ occurs, they are independent. Since Brownian increments have zero mean, the expected change is zero, making the Itô integral a **martingale**. This makes it the standard choice for modeling physical systems where noise should not introduce systematic drift. However, it does not follow the standard chain rule of calculus.
 2. **Stratonovich Integral** (denoted $g \circ dW_t$): Evaluates the integrand at the **midpoint** $t + \Delta t/2$. This creates a correlation between the integrand and the noise, which introduces a drift and causes the integral to **lose the martingale property**. However, its primary advantage is that it **obeys the standard rules of calculus** (chain rule, product rule), which simplifies the derivation of adjoint equations.
 
-### Conversion and Correction
+### Stochastic Adjoint Derivation
+
+To derive the stochastic adjoint from first principles, we consider the SDE in Stratonovich form (denoted by the $\circ$ operator). The Stratonovich integral evaluates the integrand at the midpoint of the interval, $g(y, t) \circ dW_t \approx g(y_{t+\Delta t/2}, t+\Delta t/2) \Delta W_t$. This choice ensures that the SDE obeys the standard rules of calculus:
+
+```{math}
+:label: eq:strat_sde
+dy = f(y, t, \theta) dt + g(y, t, \theta) \circ dW_t
+```
+
+Consider a small time step $\Delta t$. The state update is approximately:
+
+```{math}
+:label: eq:strat_update
+y(t + \Delta t) \approx y(t) + f(y(t), t, \theta) \Delta t + g(y(t), t, \theta) \Delta W_t
+```
+
+Following the same chain rule logic as in @eq:chain_rule, the sensitivity of the loss with respect to the state at time $t$ is:
+
+```{math}
+:label: eq:strat_adjoint_step
+a(t) = \left( \frac{∂ y(t+\Delta t)}{∂ y(t)} \right)^T a(t+\Delta t)
+```
+
+Substituting the derivative of @eq:strat_update:
+
+```{math}
+:label: eq:strat_adjoint_subst
+a(t) \approx \left( I + \frac{∂ f}{∂ y}^T \Delta t + \sum_j \frac{∂ g_j}{∂ y}^T \Delta W_{t,j} \right) a(t+\Delta t)
+```
+
+In the limit $\Delta t \to 0$, this yields the adjoint SDE in Stratonovich form:
+
+```{math}
+:label: eq:strat_adjoint_sde
+da(t) = -\left( \frac{∂ f}{∂ y} \right)^T a(t) dt - \sum_j \left( \frac{∂ g_j}{∂ y} \right)^T a(t) \circ dW_{t,j}
+```
+
+When converted back to Itô form for numerical stability and implementation, this introduces the **Stratonovich-to-Itô correction** term:
+
+```{math}
+:label: eq:sde_adjoint
+da(t) = -\left[ a(t) \frac{∂ f}{∂ y} - \sum_j \left( a(t) \frac{∂ g_j}{∂ y} \right) \frac{∂ g_j}{∂ y} \right] dt - \sum_j \left( a(t) \frac{∂ g_j}{∂ y} \right) dW_t
+```
+
+where $g_j$ are the columns of the diffusion matrix $g$.
+
+### Stratonovich-to-Itô Conversion and Correction
 
 The relationship between a Stratonovich SDE ($dy = f_s dt + g \circ dW_t$) and an Itô SDE ($dy = f_i dt + g dW_t$) is given by the conversion formula:
 
