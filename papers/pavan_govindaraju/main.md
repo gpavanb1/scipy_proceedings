@@ -208,11 +208,14 @@ as a benchmark. They can vary with software versions and system load.
 
 ### Installation
 
-NODEFit can be installed via pip:
+NODEFit can be installed via `pip`:
 
 ```bash
 pip install nodefit
 ```
+
+- **Python and PyTorch Versions**: NODEFit requires Python $\ge 3.8$ and PyTorch $\ge 1.12$ (compatible with PyTorch 2.x). Core dependencies—including `torchdiffeq`, `torchsde`, `numpy`, and `matplotlib`, are installed automatically.
+- **Hardware Requirements**: A dedicated GPU is optional. Because the neural vector fields and diffusion networks for typical continuous-time dynamical systems are relatively compact (often 1–3 shallow layers with modest hidden dimensions), CPU-only usage is fully supported and fast (e.g., all benchmark models in this paper train in under a minute on a standard laptop CPU). When available, GPU acceleration (via CUDA or Apple Silicon MPS) can be utilized seamlessly by placing tensors and modules on the target device using standard PyTorch semantics.
 
 ### Sample Code
 
