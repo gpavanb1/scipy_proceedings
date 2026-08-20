@@ -127,9 +127,9 @@ For stochastic systems, NODEFit integrates `torchsde` [@li2020scalable]. Stochas
 
 Similar to the deterministic case, the stochastic adjoint sensitivity method avoids storing the full trajectory, enabling gradient computation with constant memory cost. However, SDEs require consistent noise across both forward and backward passes. `torchsde` achieves this through a **Virtual Brownian Tree**, which allows for the exact reconstruction of the Brownian motion $W_t$ at any time point using a fixed seed. By reconstructing both the state and the noise during the backward pass, the memory cost remains constant even for complex stochastic trajectories. For the complete first-principles derivation of the stochastic adjoint and the associated stochastic calculus, see the Appendix.
 
-#### Memory Efficiency Comparison
+#### Memory Efficiency Trade-offs
 
-The primary advantage of the adjoint methods used in NODEFit is the reduction in memory overhead. The following table summarizes the comparison between the naive backpropagation approach and the adjoint-based methods implemented in `torchdiffeq` and `torchsde`.
+The primary advantage of the adjoint methods used in NODEFit is the reduction in memory overhead. The following table summarizes the theoretical scaling and computational trade-offs between the naive backpropagation approach and the adjoint-based methods implemented in `torchdiffeq` and `torchsde`.
 
 :::{table} Comparison of memory efficiency and computational trade-offs between naive backpropagation and the adjoint sensitivity method.
 :label: table:memory_comparison
