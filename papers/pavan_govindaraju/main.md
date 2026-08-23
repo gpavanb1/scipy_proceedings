@@ -286,6 +286,24 @@ The model was tasked with learning these underlying dynamics and providing robus
 Neural SDE fit on a complex 2D trajectory. The dotted black line represents the underlying theoretical trajectory, while the solid lines and shaded regions show the predicted mean and uncertainty. The model captures the multi-dimensional dynamics and provides reliable extrapolations.
 :::
 
+### Clinical Case Study: Stochastic Heart Rate Dynamics in Atrial Fibrillation
+
+To evaluate NODEFit on a live clinical research dataset, we analyzed an electrocardiogram (ECG) recording from the open-source PTB-XL database [@wagner2020ptbxl; @goldberger2000physiobank]. In patients diagnosed with cardiac arrhythmias such as atrial fibrillation (AFIB), the sinoatrial node fires irregularly, producing stochastic fluctuations in the beat-to-beat interval ($RR$) and instantaneous heart rate alongside baseline sensor and environmental noise (@fig:ptbxl_raw).
+
+:::{figure} results/ptbxl_ecg_raw.png
+:label: fig:ptbxl_raw
+Ten-second high-resolution clinical ECG recording from PTB-XL record #16834 (Lead II, sampled at 500 Hz). Detected R-peaks (red triangles) mark non-uniform beat occurrences characteristic of atrial fibrillation.
+:::
+
+Traditional discrete-time autoregressive models struggle with continuous physiological processes because observation intervals in biological time series vary continuously. In contrast, continuous-time Neural SDEs naturally operate over arbitrary time coordinates. We extracted the continuous instantaneous heart rate trajectory from Lead II of PTB-XL record #16834 and trained a compact Neural SDE on the first 6 seconds of observation ($t \le 6\text{ s}$, $N=56$ observations), leaving the remaining trajectory held out ($t > 6\text{ s}$, $N=34$ observations) as shown in @fig:ptbxl_sde. As a deterministic baseline, `scipy.optimize.curve_fit` with a cubic polynomial was fitted over the same training window.
+
+As shown in @fig:ptbxl_sde, the deterministic polynomial overfits local curvature during training and inflects rigidly upward past $t=6\text{ s}$ without bounding physiological extremes or quantifying uncertainty. In contrast, NODEFit's Neural SDE—parameterized with bounded multi-harmonic phase coordinates ($K=3$ harmonic orders spanning the underlying $\sim 0.35\text{ Hz}$ autonomic cycle) and state-dependent drift—reconstructs the multi-cycle respiratory oscillation throughout the training window ($t \le 6\text{ s}$) without unbounded extrapolation blowup. Concurrently, the diffusion network learns the physiological beat-to-beat volatility ($\pm 1\sigma \approx 12\text{ BPM}$ and $\pm 2\sigma \approx 25\text{ BPM}$ confidence bands), providing an expanding stochastic uncertainty envelope that successfully encapsulates the held-out arrhythmic heart rate fluctuations in the unobserved forecast window ($t > 6\text{ s}$).
+
+:::{figure} results/ptbxl_hrv_sde.png
+:label: fig:ptbxl_sde
+Continuous-time instantaneous heart rate dynamics modeled with a Neural SDE. Solid black dots denote training observations ($t \le 6\text{ s}$, $N=56$), solid blue squares denote held-out future observations ($t > 6\text{ s}$, $N=34$), open red circles denote discrete cardiac beat occurrences, the red dashed curve shows the `curve_fit` cubic baseline, and the solid blue curve and shaded bands show the Neural SDE learned drift and diffusion ($\pm 1\sigma$ and $\pm 2\sigma$) uncertainty envelopes.
+:::
+
 ## Conclusion
 
 NODEFit offers a user-friendly and powerful tool for fitting continuous-time models to time-series data. By leveraging Neural ODEs and SDEs, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
