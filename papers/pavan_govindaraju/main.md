@@ -150,7 +150,7 @@ To handle larger datasets and more complex trajectories, we implemented an optim
 2. **Single-precision arithmetic:** Operating consistently in `float32` rather than `float64`.
 3. **Solver configuration & loop efficiency:** Enforcing a fixed time step `dt = 0.1` for Euler integration and pre-allocating repeated target batch tensors to avoid redundant allocations during loss computation.
 
-Benchmarking against the base implementation on synthetic trajectories demonstrates an empirical speedup of $138\times$ (reducing per-epoch training time from $1.84\text{ s}$ down to $0.013\text{ s}$ on the reference CPU), bringing 1,000 epochs of Neural SDE training down to under 40 seconds.
+Benchmarking against the base implementation on synthetic trajectories demonstrates an empirical speedup of $138\times$ (reducing per-epoch training time from $1.84\text{s}$ down to $0.013\text{s}$ on the reference CPU), bringing 1,000 epochs of Neural SDE training down to under 40 seconds.
 
 ### Reproducibility and wall-clock timings
 
@@ -328,13 +328,13 @@ Across all cohort subsets, NODEFit's Neural SDE significantly outperforms the st
 
 :::{figure} results/ptbxl_cohort_distance_summary.png
 :label: fig:ptbxl_cohort_summary
-Cohort-wide forecasting reliability as a function of temporal distance from the forecast horizon ($\Delta t = t - 6\text{s}$) across ~2,000 PTB-XL patients. Top row: Lead II; bottom row: Lead V5. (a) Empirical percentage of held-out observations encapsulated by the learned Neural SDE $\pm 1\sigma$ and $\pm 2\sigma$ diffusion envelopes compared against theoretical Gaussian coverage limits ($68.3\%$ and $95.4\%$). (b) Out-of-sample RMSE across forecast distance, demonstrating stable error bounds for NODEFit versus cubic polynomial runaway.
+Cohort-wide forecasting reliability as a function of temporal distance from the forecast horizon ($\Delta t = t - 6\text{s}$) across 1,997 PTB-XL patients. Top row: Lead II; bottom row: Lead V5. (a) Empirical percentage of held-out observations encapsulated by the learned Neural SDE $\pm 1\sigma$ and $\pm 2\sigma$ diffusion envelopes compared against theoretical Gaussian coverage limits ($68.3\%$ and $95.4\%$). (b) Out-of-sample RMSE across forecast distance, demonstrating stable error bounds for NODEFit versus cubic polynomial runaway.
 :::
 
 To examine how predictive uncertainty evolves into the unobserved future, @fig:ptbxl_cohort_summary tracks model performance as a function of distance $\Delta t = t - 6\text{s}$ from the forecast horizon:
 
-1. **Uncertainty Calibration:** As shown in @fig:ptbxl_cohort_summary(a), the learned diffusion network produces well-calibrated confidence bands throughout the forecast window. Across both Lead II and Lead V5, empirical $\pm 2\sigma$ coverage remains between $94\%$ and $97\%$, closely aligning with the theoretical $95.4\%$ two-standard-deviation Gaussian boundary.
-2. **Extrapolation Stability:** As shown in @fig:ptbxl_cohort_summary(b), standard polynomial regression exhibits severe runaway divergence beyond $\Delta t > 1.5\text{s}$, with average forecast errors exceeding $350\text{--}400\text{ BPM}$ near the end of the 10-second recording. In contrast, the Neural SDE's learned vector field maintains flat, physiologically bounded error profiles throughout the entire extrapolation interval.
+1. **Uncertainty Calibration:** As shown in @fig:ptbxl_cohort_summary (column a), the learned diffusion network produces well-calibrated confidence bands throughout the forecast window. Across both Lead II and Lead V5, empirical $\pm 2\sigma$ coverage remains between $94\%$ and $97\%$, closely aligning with the theoretical $95.4\%$ two-standard-deviation Gaussian boundary.
+2. **Extrapolation Stability:** As shown in @fig:ptbxl_cohort_summary (column b), standard polynomial regression exhibits severe runaway divergence beyond $\Delta t > 1.5\text{s}$, with average forecast errors exceeding $350\text{--}400\text{ BPM}$ near the end of the 10-second recording. In contrast, the Neural SDE's learned vector field maintains flat, physiologically bounded error profiles throughout the entire extrapolation interval.
 
 These cohort-wide results confirm that continuous-time Neural SDEs provide robust trajectory modeling and calibrated uncertainty quantification across large, heterogeneous clinical datasets.
 
