@@ -334,7 +334,7 @@ Cohort-wide forecasting reliability as a function of temporal distance from the 
 To examine how predictive uncertainty evolves into the unobserved future, @fig:ptbxl_cohort_summary tracks model performance as a function of distance $\Delta t = t - 6\text{s}$ from the forecast horizon:
 
 1. **Uncertainty Calibration:** As shown in @fig:ptbxl_cohort_summary (column a), the learned diffusion network produces well-calibrated confidence bands throughout the forecast window. Across both Lead II and Lead V5, empirical $\pm 2\sigma$ coverage remains between $94\%$ and $97\%$, closely aligning with the theoretical $95.4\%$ two-standard-deviation Gaussian boundary.
-2. **Extrapolation Stability:** As shown in @fig:ptbxl_cohort_summary (column b), standard polynomial regression exhibits severe runaway divergence beyond $\Delta t > 1.5\text{s}$, with average forecast errors exceeding $350\text{--}400\text{ BPM}$ near the end of the 10-second recording. In contrast, the Neural SDE's learned vector field maintains flat, physiologically bounded error profiles throughout the entire extrapolation interval.
+2. **Extrapolation Stability:** As shown in @fig:ptbxl_cohort_summary (column b), standard polynomial regression exhibits severe runaway divergence beyond $\Delta t > 1.5\text{s}$, with average forecast errors exceeding 350-400$\text{ BPM}$ near the end of the 10-second recording. In contrast, the Neural SDE's learned vector field maintains flat, physiologically bounded error profiles throughout the entire extrapolation interval.
 
 These cohort-wide results confirm that continuous-time Neural SDEs provide robust trajectory modeling and calibrated uncertainty quantification across large, heterogeneous clinical datasets.
 
@@ -342,7 +342,7 @@ These cohort-wide results confirm that continuous-time Neural SDEs provide robus
 
 NODEFit offers a user-friendly and powerful tool for fitting continuous-time models to time-series data. By leveraging Neural ODEs and SDEs, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
 
-For practitioners deciding whether to use NODEFit, the central question is whether the data plausibly arise from a smooth, Markovian continuous-time process. If polynomial regression, splines, `scipy.optimize.curve_fit` with a hand-chosen template, or PySINDy with a library that already contains the true terms produce stable fits and credible extrapolations, a Neural ODE may be unnecessary. PySINDy is the better choice when an interpretable sparse equation in a known basis is the goal. Consider NODEFit when those tools leave systematic residuals, extrapolations diverge from physical expectations, or the functional form of the dynamics is unknown—including stochastic processes where a diffusion network is needed. Template-based fits must guess a closed-form expression or a candidate library, whereas a Neural ODE learns a single vector field coupling all states.
+For practitioners deciding whether to use NODEFit, the central question is whether the data plausibly arise from a smooth, Markovian continuous-time process. If polynomial regression, splines, `scipy.optimize.curve_fit` with a hand-chosen template, or PySINDy with a library that already contains the true terms produce stable fits and credible extrapolations, a Neural ODE may be unnecessary. PySINDy is the better choice when an interpretable sparse equation in a known basis is the goal. Consider NODEFit when those tools leave systematic residuals, extrapolations diverge from physical expectations, or the functional form of the dynamics is unknown, including stochastic processes where a diffusion network is needed. Template-based fits must guess a closed-form expression or a candidate library, whereas a Neural ODE learns a single vector field coupling all states.
 
 When observations are noisy, ask whether the noise reflects measurement error alone or variability intrinsic to the process. Ordinary least squares and deterministic Neural ODEs treat scatter as something to be averaged out. If uncertainty grows with state magnitude or if extrapolated forecasts should carry confidence intervals, a Neural SDE is the more appropriate NODEFit model. The diffusion network learns state-dependent noise alongside the drift.
 
@@ -437,30 +437,67 @@ It is important to note that for the adjoint SDE (Equation {ref}`eq:sde_adjoint`
 
 #### Mathematical Derivation
 
-To see this mathematically, we use index notation where $y_i$ and $a_i$ denote the components of the state and adjoint (row) vectors. Consider a forward Itô SDE $dy_i = f_i dt + \sum_j g_{i,j} dW_j$. The equivalent Stratonovich drift $\tilde{f}_i$ is:
+To see this mathematically from first principles, we use index notation where $y_i$ and $a_i$ denote the components of the state and adjoint (row) vectors.
+
+**1. General Midpoint Rule and Conversion:**
+For any Stratonovich stochastic term $G(X, t) \circ dW$ with state vector $X(t)$, the integral over a small time step $[t, t+\Delta t]$ is evaluated at the midpoint $\bar{X} = X(t) + \frac{1}{2}\Delta X$:
+
+$$G_{i,j}(\bar{X}, t) \Delta W_j \approx \left[ G_{i,j}(X(t), t) + \frac{1}{2} \sum_k \frac{∂ G_{i,j}}{∂ X_k} \Delta X_k \right] \Delta W_j$$
+
+Substituting the leading-order stochastic increment $\Delta X_k \approx \sum_l G_{k,l} \Delta W_l$ and applying the Brownian quadratic variation ($\Delta W_l \Delta W_j = \delta_{lj} \Delta t$):
+
+$$\sum_j G_{i,j}(X, t) \circ dW_j = \sum_j G_{i,j}(X, t) dW_j + \frac{1}{2} \sum_j \sum_k \frac{∂ G_{i,j}}{∂ X_k} G_{k,j} dt$$
+
+This fundamental midpoint relation provides the Stratonovich-to-Itô drift correction for any state vector $X$.
+
+**2. Forward Stratonovich Drift:**
+Applying this general relation directly to the forward state $X = y$ with diffusion matrix $g(y, t)$:
+
+$$\sum_j g_{i,j}(y, t) \circ dW_j = \sum_j g_{i,j}(y, t) dW_j + \frac{1}{2} \sum_j \sum_k \frac{∂ g_{i,j}}{∂ y_k} g_{k,j} dt$$
+
+Equating the total drift of the Stratonovich SDE $dy_i = \tilde{f}_i dt + \sum_j g_{i,j} \circ dW_j$ to that of the forward Itô SDE $dy_i = f_i dt + \sum_j g_{i,j} dW_j$ yields the equivalent forward Stratonovich drift $\tilde{f}_i$:
 
 ```{math}
 :label: eq:strat_drift_index
 \tilde{f}_i = f_i - \frac{1}{2} \sum_j \sum_k \frac{∂ g_{i,j}}{∂ y_k} g_{k,j}
 ```
 
-The adjoint Stratonovich SDE is $da_i = - \sum_k a_k \frac{∂ \tilde{f}_k}{∂ y_i} dt - \sum_j \sum_k a_k \frac{∂ g_{k,j}}{∂ y_i} \circ dW_j$. To convert this back to Itô form, we identify the adjoint diffusion term $\sigma_{i,j}^{(a)} = - \sum_k a_k \frac{∂ g_{k,j}}{∂ y_i}$. The Itô drift correction $C_{a_i}$ for the adjoint is:
+**3. Adjoint Itô Drift Correction:**
+From Equation {ref}`eq:strat_adjoint_sde`, the adjoint Stratonovich SDE is:
+
+$$da_i = - \sum_k a_k \frac{∂ \tilde{f}_k}{∂ y_i} dt - \sum_j \sum_k a_k \frac{∂ g_{k,j}}{∂ y_i} \circ dW_j$$
+
+Here, we identify the adjoint diffusion term $\sigma_{i,j}^{(a)}(y, a) = - \sum_k a_k \frac{∂ g_{k,j}}{∂ y_i}$. Because $\sigma_{i,j}^{(a)}$ depends simultaneously on both the forward state $y$ and the adjoint state $a$, the augmented state vector is $X = [y, a]$.
+
+Applying the general midpoint correction formula to this augmented system $X = [y, a]$ distributes the partial derivatives across both state variables, directly giving the adjoint drift correction $C_{a_i}$:
 
 ```{math}
 :label: eq:ito_corr_index
 C_{a_i} = \frac{1}{2} \sum_j \left( \sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ a_k} \sigma_{k,j}^{(a)} + \sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ y_k} g_{k,j} \right)
 ```
 
-Expanding these terms:
+where the first sum accounts for perturbations in the adjoint state $\Delta a_k \approx \sum_l \sigma_{k,l}^{(a)} \Delta W_l$, and the second sum accounts for perturbations in the forward state $\Delta y_k \approx \sum_l g_{k,l} \Delta W_l$.
+
+**4. Expansion and Cancellation:**
+Evaluating each term in Equation {ref}`eq:ito_corr_index` using $\sigma_{i,j}^{(a)} = - \sum_m a_m \frac{∂ g_{m,j}}{∂ y_i}$:
 1. $\sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ a_k} \sigma_{k,j}^{(a)} = \sum_k \left( -\frac{∂ g_{k,j}}{∂ y_i} \right) \left( -\sum_m a_m \frac{∂ g_{m,j}}{∂ y_k} \right) = \sum_m a_m \sum_k \frac{∂ g_{m,j}}{∂ y_k} \frac{∂ g_{k,j}}{∂ y_i}$
 2. $\sum_k \frac{∂ \sigma_{i,j}^{(a)}}{∂ y_k} g_{k,j} = \sum_k \left( -\sum_m a_m \frac{∂^2 g_{m,j}}{∂ y_k ∂ y_i} \right) g_{k,j} = - \sum_m a_m \sum_k \frac{∂^2 g_{m,j}}{∂ y_i ∂ y_k} g_{k,j}$
 
-Now, we differentiate the Stratonovich drift $\tilde{f}_k$ from @eq:strat_drift_index:
-$\frac{∂ \tilde{f}_k}{∂ y_i} = \frac{∂ f_k}{∂ y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{∂^2 g_{k,j}}{∂ y_i ∂ y_m} g_{m,j} + \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i} \right)$.
+Next, differentiating the Stratonovich drift $\tilde{f}_k$ from @eq:strat_drift_index with respect to $y_i$:
 
-Combining everything into the total Itô drift for $a_i$:
-$\mu_{a_i} = - \sum_k a_k \frac{∂ \tilde{f}_k}{∂ y_i} + C_{a_i}$
-$\mu_{a_i} = - \sum_k a_k \left[ \frac{∂ f_k}{∂ y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{∂^2 g_{k,j}}{∂ y_i ∂ y_m} g_{m,j} + \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i} \right) \right] + \frac{1}{2} \sum_j \sum_m a_m \left( \sum_k \frac{∂ g_{m,j}}{∂ y_k} \frac{∂ g_{k,j}}{∂ y_i} - \sum_k \frac{∂^2 g_{m,j}}{∂ y_i ∂ y_k} g_{k,j} \right)$
+$$\frac{∂ \tilde{f}_k}{∂ y_i} = \frac{∂ f_k}{∂ y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{∂^2 g_{k,j}}{∂ y_i ∂ y_m} g_{m,j} + \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i} \right)$$
 
-The terms involving second derivatives $\frac{∂^2 g}{∂ y^2}$ cancel out, and the terms involving the product of first derivatives $\frac{∂ g}{∂ y} \frac{∂ g}{∂ y}$ add up: $\frac{1}{2} + \frac{1}{2} = 1$. This yields the final Itô drift:
-$\mu_{a_i} = - \sum_k a_k \frac{∂ f_k}{∂ y_i} + \sum_j \sum_k a_k \sum_m \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i}$, which is the component-wise form of Equation {ref}`eq:sde_adjoint`.
+Combining everything into the total Itô drift for $a_i$, $\mu_{a_i} = - \sum_k a_k \frac{∂ \tilde{f}_k}{∂ y_i} + C_{a_i}$:
+
+```{math}
+\begin{aligned}
+\mu_{a_i} = & -\sum_k a_k \left[ \frac{∂ f_k}{∂ y_i} - \frac{1}{2} \sum_j \sum_m \left( \frac{∂^2 g_{k,j}}{∂ y_i ∂ y_m} g_{m,j} + \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i} \right) \right] \\
+& + \frac{1}{2} \sum_j \sum_m a_m \left( \sum_k \frac{∂ g_{m,j}}{∂ y_k} \frac{∂ g_{k,j}}{∂ y_i} - \sum_k \frac{∂^2 g_{m,j}}{∂ y_i ∂ y_k} g_{k,j} \right)
+\end{aligned}
+```
+
+The second-order derivative terms involving $\frac{∂^2 g}{∂ y^2}$ cancel out exactly, while the product of first-derivative terms add up: $\frac{1}{2} + \frac{1}{2} = 1$. This yields the final Itô drift:
+
+$$\mu_{a_i} = - \sum_k a_k \frac{∂ f_k}{∂ y_i} + \sum_j \sum_k a_k \sum_m \frac{∂ g_{k,j}}{∂ y_m} \frac{∂ g_{m,j}}{∂ y_i}$$
+
+which is the component-wise form of Equation {ref}`eq:sde_adjoint`.
