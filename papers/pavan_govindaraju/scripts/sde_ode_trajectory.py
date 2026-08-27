@@ -33,20 +33,17 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 torch.manual_seed(0)
 np.random.seed(0)
 
-class FastSDE(SDE):
+class AutonomousFastSDE(SDE):
     def __init__(self, drift_nn, diffusion_nn, noise_type="diagonal", sde_type="ito", numerical_method="euler"):
         super().__init__(drift_nn, diffusion_nn, noise_type, sde_type, numerical_method)
 
     def f(self, t, y):
-        # Faster way to concatenate t: use y.new_full
-        t_tensor = y.new_full((y.shape[0], 1), t)
-        combined = torch.cat((t_tensor, y), dim=1)
-        return self.drift_nn(combined)
+        # Autonomous drift: depends on state y only
+        return self.drift_nn(y)
 
     def g(self, t, y):
-        t_tensor = y.new_full((y.shape[0], 1), t)
-        combined = torch.cat((t_tensor, y), dim=1)
-        return self.diffusion_nn(combined)
+        # Autonomous diffusion: depends on state y only
+        return self.diffusion_nn(y)
 
 class FastNeuralSDE(NeuralSDE):
     def __init__(self, drift_nn: nn.Module, diffusion_nn: nn.Module, t, data, batch_size=2, dt=0.1):
@@ -56,8 +53,8 @@ class FastNeuralSDE(NeuralSDE):
         # Initialize with standard NeuralSDE
         super().__init__(drift_nn, diffusion_nn, t, data, batch_size)
 
-        # Override with FastSDE and correct dtypes
-        self.sde = FastSDE(drift_nn, diffusion_nn)
+        # Override with AutonomousFastSDE and correct dtypes
+        self.sde = AutonomousFastSDE(drift_nn, diffusion_nn)
         self.dt = dt
 
         # Ensure all tensors match the NN dtype
@@ -87,7 +84,9 @@ class FastNeuralSDE(NeuralSDE):
 
         return nll
 
-    def train(self, num_epochs, print_every=100):
+    def train(self, num_epochs, print_every=100, lr=0.01):
+        self.sde.drift_opt = torch.optim.Adam(self.sde.drift_nn.parameters(), lr=lr)
+        self.sde.diffusion_opt = torch.optim.Adam(self.sde.diffusion_nn.parameters(), lr=lr)
         for i in tqdm(range(num_epochs)):
             self.sde.drift_opt.zero_grad()
             self.sde.diffusion_opt.zero_grad()
@@ -117,15 +116,15 @@ def run_ode_trajectory_sde_example():
     data = np.stack([y1, y2], axis=1)
 
     # Use float32 for speed
-    # Input dim = 1 (time) + 2 (data dim) = 3
+    # Autonomous formulation: Input dim = 2 (data dim y only)
     drift_nn = nn.Sequential(
-        nn.Linear(3, 20),
+        nn.Linear(2, 20),
         nn.Tanh(),
         nn.Linear(20, 2)
     )
 
     diffusion_nn = nn.Sequential(
-        nn.Linear(3, 20),
+        nn.Linear(2, 20),
         nn.Tanh(),
         nn.Linear(20, 2)
     )
@@ -133,7 +132,7 @@ def run_ode_trajectory_sde_example():
     # Initialize and train the optimized SDE model
     # Using batch_size=20 and dt=0.1 for speed and stability
     sde = FastNeuralSDE(drift_nn, diffusion_nn, t, data, batch_size=20, dt=0.1)
-    sde.train(num_epochs=500, print_every=50)
+    sde.train(num_epochs=500, print_every=50, lr=0.01)
 
     # Extrapolate
     tf_extra = 8
