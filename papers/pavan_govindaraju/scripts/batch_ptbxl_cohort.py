@@ -25,6 +25,19 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "font.size": 12,
+    "axes.labelsize": 12,
+    "axes.titlesize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+    "figure.titlesize": 12,
+})
+
 import numpy as np
 import pandas as pd
 import torch
@@ -612,25 +625,27 @@ def generate_distance_summary_plots(pts_df, metrics_df, out_path=None):
         ax_cov.axhline(95.4, color="#a0aec0", linestyle="--", lw=1.2, label=r"Theoretical $2\sigma$ (95.4%)")
         ax_cov.plot(binned["delta_t"], binned["in_1sd"] * 100.0, "o-", color="#2b6cb0", lw=2.0, markersize=5, label=r"Empirical $\pm 1\sigma$ Coverage")
         ax_cov.plot(binned["delta_t"], binned["in_2sd"] * 100.0, "s-", color="#319795", lw=2.0, markersize=5, label=r"Empirical $\pm 2\sigma$ Coverage")
-        ax_cov.set_ylabel(f"Lead {lead}\nSamples in Band (%)", fontsize=9.5, fontweight="bold")
+        ax_cov.set_ylabel(f"Lead {lead}\nSamples in Band (%)", fontsize=12, fontweight="bold")
         ax_cov.set_ylim(20, 105)
+        ax_cov.tick_params(labelsize=12)
         ax_cov.grid(True, alpha=0.3)
         if row_idx == 0:
-            ax_cov.set_title(r"(a) Neural SDE Coverage vs Forecast Horizon ($\Delta t = t - 6\text{s}$)", fontsize=10.5, pad=6)
-            ax_cov.legend(loc="lower left", fontsize=7.8)
+            ax_cov.set_title(r"(a) Neural SDE Coverage vs Forecast Horizon ($\Delta t = t - 6\text{s}$)", fontsize=12, pad=6)
+            ax_cov.legend(loc="lower left", fontsize=12)
 
         # Right column: Error Comparison (RMSE) vs Distance from t=6s
         ax_err = axes[row_idx, 1]
         ax_err.plot(binned["delta_t"], binned["err_sde"], "o-", color="#2b6cb0", lw=2.2, markersize=5, label="Neural SDE (Ours)")
         ax_err.plot(binned["delta_t"], binned["err_cubic"], "x--", color="#e53e3e", lw=1.8, markersize=4.5, label="Cubic curve_fit")
-        ax_err.set_ylabel(f"Lead {lead}\nForecast RMSE (BPM)", fontsize=9.5, fontweight="bold")
+        ax_err.set_ylabel(f"Lead {lead}\nForecast RMSE (BPM)", fontsize=12, fontweight="bold")
+        ax_err.tick_params(labelsize=12)
         ax_err.grid(True, alpha=0.3)
         if row_idx == 0:
-            ax_err.set_title(r"(b) Model Error vs Forecast Horizon ($\Delta t = t - 6\text{s}$)", fontsize=10.5, pad=6)
-            ax_err.legend(loc="upper left", fontsize=7.8)
+            ax_err.set_title(r"(b) Model Error vs Forecast Horizon ($\Delta t = t - 6\text{s}$)", fontsize=12, pad=6)
+            ax_err.legend(loc="upper left", fontsize=12)
 
     for c in range(2):
-        axes[1, c].set_xlabel(r"Forecast Distance from Horizon ($\Delta t = t - 6.0\text{s}$)", fontsize=9.5)
+        axes[1, c].set_xlabel(r"Forecast Distance from Horizon ($\Delta t = t - 6.0\text{s}$)", fontsize=12)
         axes[1, c].set_xlim(0, 3.8)
 
     fig.tight_layout()
@@ -654,19 +669,29 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, default=None, help="Custom path for CSV checkpoint")
     parser.add_argument("--save_every", type=int, default=5, help="Autosave checkpoint frequency in patients (default: 5)")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing checkpoint and start from patient 1")
+    parser.add_argument("--plot_only", action="store_true", help="Generate summary plots from existing CSV results without re-running benchmark")
 
     args = parser.parse_args()
 
-    metrics_df, pts_df = run_cohort_benchmark(
-        num_samples=args.num_samples,
-        download_samples=args.download_samples,
-        leads=args.leads,
-        epochs=args.epochs,
-        sampling_rate=args.sampling_rate,
-        checkpoint_csv=args.checkpoint,
-        resume=not args.overwrite,
-        save_every=args.save_every,
-    )
+    if args.plot_only:
+        pts_path = RESULTS_DIR / "ptbxl_cohort_pointwise.csv"
+        metrics_path = RESULTS_DIR / "ptbxl_cohort_metrics.csv"
+        if not pts_path.exists() or not metrics_path.exists():
+            print(f"Error: Required CSV files not found in {RESULTS_DIR}")
+            sys.exit(1)
+        pts_df = pd.read_csv(pts_path)
+        metrics_df = pd.read_csv(metrics_path)
+    else:
+        metrics_df, pts_df = run_cohort_benchmark(
+            num_samples=args.num_samples,
+            download_samples=args.download_samples,
+            leads=args.leads,
+            epochs=args.epochs,
+            sampling_rate=args.sampling_rate,
+            checkpoint_csv=args.checkpoint,
+            resume=not args.overwrite,
+            save_every=args.save_every,
+        )
 
     summary_tables = compute_summary_table(metrics_df)
     md_table = format_markdown_table(summary_tables)

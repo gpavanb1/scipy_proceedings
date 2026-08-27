@@ -1,8 +1,26 @@
+import os
 import numpy as np
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+# Set writable cache directory for Matplotlib
+os.environ.setdefault("MPLCONFIGDIR", os.path.abspath(".matplotlib-cache"))
+
+import matplotlib.pyplot as plt
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "font.size": 12,
+    "axes.labelsize": 12,
+    "axes.titlesize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+    "figure.titlesize": 12,
+})
 from scipy.integrate import solve_ivp
 from nodefit.neural_ode import NeuralODE
 
@@ -100,10 +118,11 @@ def run_lotka_volterra_example():
         )
 
     axes[0].axvline(6, color="0.5", linestyle="-.", linewidth=1)
-    axes[0].set_xlabel("Time")
-    axes[0].set_ylabel("Population")
-    axes[0].set_title("Time evolution")
-    axes[0].legend(fontsize=8)
+    axes[0].set_xlabel("Time", fontsize=12)
+    axes[0].set_ylabel("Population", fontsize=12)
+    axes[0].set_title("Time evolution", fontsize=12)
+    axes[0].tick_params(labelsize=12)
+    axes[0].legend(fontsize=12)
 
     axes[1].plot(
         true_values[:, 0],
@@ -126,14 +145,15 @@ def run_lotka_volterra_example():
         markersize=3,
         label="Observed",
     )
-    axes[1].set_xlabel("Prey population")
-    axes[1].set_ylabel("Predator population")
-    axes[1].set_title("Phase portrait")
-    axes[1].legend(fontsize=8)
+    axes[1].set_xlabel("Prey population", fontsize=12)
+    axes[1].set_ylabel("Predator population", fontsize=12)
+    axes[1].set_title("Phase portrait", fontsize=12)
+    axes[1].tick_params(labelsize=12)
+    axes[1].legend(fontsize=12)
 
     fig.suptitle(
         "Lotka–Volterra reconstruction from the first half of the trajectory",
-        fontsize=11,
+        fontsize=12,
     )
     fig.tight_layout()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)

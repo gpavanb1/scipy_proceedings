@@ -1,8 +1,26 @@
+import os
 import numpy as np
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+# Set writable cache directory for Matplotlib
+os.environ.setdefault("MPLCONFIGDIR", os.path.abspath(".matplotlib-cache"))
+
+import matplotlib.pyplot as plt
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "font.size": 12,
+    "axes.labelsize": 12,
+    "axes.titlesize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+    "figure.titlesize": 12,
+})
 from scipy.optimize import curve_fit
 from nodefit.neural_ode import NeuralODE
 
@@ -102,24 +120,25 @@ def run_ode_example():
             label="Training data",
         )
         ax.axvline(train_end, color="0.5", linestyle="-.", linewidth=1)
-        ax.set_title(f"State {i + 1}")
-        ax.set_xlabel("Time")
+        ax.set_title(f"State {i + 1}", fontsize=12)
+        ax.set_xlabel("Time", fontsize=12)
         if i == 0:
-            ax.set_ylabel("Value")
+            ax.set_ylabel("Value", fontsize=12)
         ax.set_xlim(0, 10)
-        ax.legend(fontsize=8, loc="upper right" if i == 1 else "lower right")
+        ax.tick_params(labelsize=12)
+        ax.legend(fontsize=12, loc="upper right" if i == 1 else "lower right")
 
     axes[1].text(
         train_end + 0.05,
         axes[1].get_ylim()[0],
         "train end",
-        fontsize=8,
+        fontsize=12,
         color="0.4",
         va="bottom",
     )
     fig.suptitle(
         "Saturating kinetics: cubic curve_fit inflects beyond training; Neural ODE extrapolates",
-        fontsize=11,
+        fontsize=12,
     )
     fig.tight_layout()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)

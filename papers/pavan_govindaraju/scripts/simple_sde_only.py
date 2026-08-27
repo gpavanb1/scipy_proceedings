@@ -1,11 +1,33 @@
+import os
 import numpy as np
 import torch
 import torch.nn as nn
+from pathlib import Path
+
+# Set writable cache directory for Matplotlib
+os.environ.setdefault("MPLCONFIGDIR", os.path.abspath(".matplotlib-cache"))
+
 import matplotlib.pyplot as plt
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "font.size": 12,
+    "axes.labelsize": 12,
+    "axes.titlesize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+    "figure.titlesize": 12,
+})
+
 from nodefit.neural_sde import NeuralSDE, SDE
 from nodefit.constants import DEVICE
 from torchsde import sdeint
 from tqdm import tqdm
+
+RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 
 # Set seed for reproducibility
 torch.manual_seed(0)
@@ -141,9 +163,11 @@ def run_simple_sde_example():
     plt.ylabel('Value')
     plt.title('Optimized Simple Neural SDE: Linear Drift + Noise')
     plt.legend()
-    plt.savefig('simple_sde_results.png')
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = RESULTS_DIR / "simple_sde_results.png"
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print("Simple Neural SDE example finished. Plot saved as simple_sde_results.png")
+    print(f"Simple Neural SDE example finished. Plot saved as {out_path}")
 
 if __name__ == "__main__":
     run_simple_sde_example()

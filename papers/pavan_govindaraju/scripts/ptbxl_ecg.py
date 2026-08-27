@@ -1,11 +1,30 @@
 """Fit a Neural SDE to a dense continuous heart rate trajectory from a PTB-XL ECG recording."""
 
 import argparse
+import os
+import pickle
+import sys
 import time
 from pathlib import Path
 
+# Set writable cache directory for Matplotlib before importing it
+os.environ.setdefault("MPLCONFIGDIR", os.path.abspath(".matplotlib-cache"))
+
 import matplotlib.pyplot as plt
 import numpy as np
+
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "stix",
+    "font.size": 12,
+    "axes.labelsize": 12,
+    "axes.titlesize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+    "figure.titlesize": 12,
+})
 import torch
 import torch.nn as nn
 from nodefit.constants import DEVICE
@@ -262,7 +281,7 @@ def fit_lead(lead="II"):
 
 
 def _panel_label(ax, text):
-    ax.set_title(text, loc="left", fontsize=10, fontweight="bold", pad=4)
+    ax.set_title(text, loc="left", fontsize=12, fontweight="bold", pad=6)
 
 
 def plot_raw_panel(ax, result, ylabel=True, xlabel=True, legend=False):
@@ -270,13 +289,14 @@ def plot_raw_panel(ax, result, ylabel=True, xlabel=True, legend=False):
     ax.plot(result["peak_times"], result["voltage"][result["peaks"]], "r^", markersize=4.0, label="Detected R-peaks")
     ax.axvline(TRAIN_END_S, color="0.45", linestyle="-.", lw=1.1, label=r"Forecast horizon ($t=6$s)")
     if ylabel:
-        ax.set_ylabel("Voltage (mV)", fontsize=8.5)
+        ax.set_ylabel("Voltage (mV)", fontsize=12)
     if xlabel:
-        ax.set_xlabel("Time (seconds)", fontsize=8.5)
+        ax.set_xlabel("Time (seconds)", fontsize=12)
     ax.set_xlim(0, RECORD_END_S)
+    ax.tick_params(labelsize=12)
     ax.grid(True, alpha=0.3)
     if legend:
-        ax.legend(loc="upper right", fontsize=7)
+        ax.legend(loc="upper right", fontsize=12)
 
 
 def plot_sde_panel(ax, result, xlabel=True, legend=False):
@@ -330,27 +350,28 @@ def plot_sde_panel(ax, result, xlabel=True, legend=False):
         zorder=5,
     )
     ax.axvline(TRAIN_END_S, color="0.45", linestyle="-.", lw=1.1)
-    ax.set_ylabel("Heart rate (BPM)", fontsize=8.5)
+    ax.set_ylabel("Heart rate (BPM)", fontsize=12)
     if xlabel:
-        ax.set_xlabel("Time (seconds)", fontsize=9)
+        ax.set_xlabel("Time (seconds)", fontsize=12)
     ax.set_xlim(0, RECORD_END_S)
     ax.set_ylim(50, 180)
+    ax.tick_params(labelsize=12)
     ax.grid(True, alpha=0.3)
     if legend:
-        ax.legend(loc="upper left", fontsize=7.2, ncol=3, framealpha=0.92)
+        ax.legend(loc="upper left", fontsize=12, ncol=3, framealpha=0.92)
 
 
 def save_individual_figures(result):
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     raw_name, sde_name = LEAD_FIGURES[result["lead"]]
 
-    fig1, ax1 = plt.subplots(figsize=(8.5, 2.5))
+    fig1, ax1 = plt.subplots(figsize=(9.0, 2.9))
     plot_raw_panel(ax1, result, legend=True)
     fig1.tight_layout()
     fig1.savefig(RESULTS_DIR / raw_name, dpi=200, bbox_inches="tight")
     plt.close(fig1)
 
-    fig2, ax2 = plt.subplots(figsize=(8.5, 3.8))
+    fig2, ax2 = plt.subplots(figsize=(9.0, 4.2))
     plot_sde_panel(ax2, result, legend=True)
     fig2.tight_layout()
     fig2.savefig(RESULTS_DIR / sde_name, dpi=200, bbox_inches="tight")
@@ -362,7 +383,7 @@ def save_combined_figures(results):
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     by_lead = {r["lead"]: r for r in results}
 
-    fig_raw, axes_raw = plt.subplots(1, 2, figsize=(8.5, 2.55), sharey=True)
+    fig_raw, axes_raw = plt.subplots(1, 2, figsize=(7.5, 2.7), sharey=True)
     for ax, lead, tag in zip(axes_raw, ("II", "V5"), ("a", "b")):
         plot_raw_panel(ax, by_lead[lead], ylabel=(lead == "II"), legend=False)
         _panel_label(ax, f"({tag}) Lead {lead}")
@@ -374,17 +395,17 @@ def save_combined_figures(results):
         handles,
         labels,
         loc="upper center",
-        fontsize=7.5,
+        fontsize=12,
         ncol=2,
         frameon=False,
-        bbox_to_anchor=(0.5, 1.08),
+        bbox_to_anchor=(0.5, 1.15),
     )
     fig_raw.tight_layout()
     out_raw = RESULTS_DIR / COMBINED_RAW
     fig_raw.savefig(out_raw, dpi=200, bbox_inches="tight")
     plt.close(fig_raw)
 
-    fig_sde, axes_sde = plt.subplots(2, 1, figsize=(8.5, 6.8), sharex=True)
+    fig_sde, axes_sde = plt.subplots(2, 1, figsize=(7.5, 5.6), sharex=True)
     for ax, lead, tag in zip(axes_sde, ("II", "V5"), ("a", "b")):
         plot_sde_panel(ax, by_lead[lead], xlabel=(lead == "V5"), legend=False)
         _panel_label(ax, f"({tag}) Lead {lead}")
@@ -393,12 +414,12 @@ def save_combined_figures(results):
         handles,
         labels,
         loc="upper center",
-        fontsize=7.3,
-        ncol=4,
+        fontsize=12,
+        ncol=3,
         frameon=False,
-        bbox_to_anchor=(0.5, 1.04),
+        bbox_to_anchor=(0.5, 1.07),
     )
-    fig_sde.tight_layout(rect=(0, 0, 1, 0.96))
+    fig_sde.tight_layout(rect=(0, 0, 1, 0.93))
     out_sde = RESULTS_DIR / COMBINED_SDE
     fig_sde.savefig(out_sde, dpi=200, bbox_inches="tight")
     plt.close(fig_sde)
@@ -416,6 +437,8 @@ def run_ptbxl_example(lead="II", save_individual=False):
     return result
 
 
+CACHE_FILE = RESULTS_DIR / "ptbxl_ecg_results.pkl"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -429,7 +452,21 @@ if __name__ == "__main__":
         action="store_true",
         help="Also write per-lead figure files",
     )
+    parser.add_argument(
+        "--plot_only",
+        action="store_true",
+        help="Regenerate plots from cached results if available",
+    )
     args = parser.parse_args()
-    results = [run_ptbxl_example(lead=lead, save_individual=args.individual) for lead in args.leads]
+
+    if args.plot_only and CACHE_FILE.exists():
+        with open(CACHE_FILE, "rb") as f:
+            results = pickle.load(f)
+        print(f"Loaded cached results from {CACHE_FILE}")
+    else:
+        results = [run_ptbxl_example(lead=lead, save_individual=args.individual) for lead in args.leads]
+        with open(CACHE_FILE, "wb") as f:
+            pickle.dump(results, f)
+
     if {"II", "V5"}.issubset({r["lead"] for r in results}):
         save_combined_figures(results)
