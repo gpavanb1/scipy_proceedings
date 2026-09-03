@@ -184,7 +184,7 @@ pip install nodefit
 
 ### Sample Code
 
-The following example demonstrates how to use NODEFit to fit a Neural SDE to a 2D trajectory with noise using the base `NeuralSDE` class:
+The following example demonstrates how to use NODEFit to fit a Neural SDE to a 2D trajectory with noise, showcasing how the high-level API makes it remarkably easy to fit complex time-series data.
 
 ```python
 import numpy as np
