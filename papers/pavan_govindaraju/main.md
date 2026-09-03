@@ -120,7 +120,7 @@ The gradient with respect to the model parameters $\theta$ is then computed by i
 
 where $\frac{∂ f(y(t), t, \theta)}{∂ \theta}$ represents the partial derivative (Jacobian) of the vector field with respect to the neural network parameters $\theta$.
 
-This enables the training of complex models on large time-series datasets that would otherwise be computationally prohibitive. The memory efficiency stems from the fact that the adjoint method does not require storing intermediate states $y(t)$ from the forward pass. Instead, the original ODE is solved backwards in time alongside the adjoint equation, reconstructing the state $y(t)$ on the fly. This reduces the memory complexity from $O(N)$, where $N$ is the number of solver steps, to $O(1)$ relative to the trajectory length.
+This enables the training of complex models on large time-series datasets that would otherwise be computationally prohibitive. The memory efficiency stems from the fact that the adjoint method does not require storing intermediate states $y(t)$ from the forward pass. Instead, the original ODE is solved backwards in time alongside the adjoint equation, reconstructing the state $y(t)$ on the fly. This reduces the memory complexity from $O(N)$, where $N$ is the number of solver steps, to $O(1)$ relative to the trajectory length, at the possible cost of sensitivity to errors in the back propagation.
 
 #### torchsde
 For stochastic systems, NODEFit integrates `torchsde` [@li2020scalable]. Stochastic Differential Equations present unique challenges, particularly in ensuring consistent Brownian motion across multiple steps and handling the nuances of stochastic calculus.
@@ -139,7 +139,8 @@ The primary advantage of the adjoint methods used in NODEFit is the reduction in
 | **Intermediate States** | Stored in memory | Reconstructed on the fly |
 | **Memory Scaling** | $O(N)$ (Linear with steps) | $O(1)$ (Constant with steps) |
 | **Noise (SDEs)** | Must be stored for every step | Regenerated via Virtual Brownian Tree |
-| **Trade-off** | Faster (no reconstruction) | Slower (requires solving backwards) |
+| **Computational Trade-off** | Faster (no reconstruction) | Slower (requires solving backwards) |
+| **Error Sensitivity** | Standard backpropagation | Possible sensitivity to errors in back propagation |
 :::
 
 ### Performance Optimizations
@@ -165,9 +166,9 @@ as a benchmark. They can vary with software versions and system load.
 
 | Example script | Training epochs | Wall-clock time |
 | :--- | ---: | ---: |
-| `simple_ode_only.py` | 1000 | 50.30 s |
-| `simple_sde_only.py` | 1000 | 36.14 s |
-| `sde_ode_trajectory.py` | 500 | 31.70 s |
+| `simple_ode_only.py` | 1000 | 50 s |
+| `simple_sde_only.py` | 1000 | 36 s |
+| `sde_ode_trajectory.py` | 500 | 32 s |
 :::
 
 ### Installation
