@@ -151,7 +151,7 @@ To handle larger datasets and more complex trajectories, we implemented an optim
 2. **Single-precision arithmetic:** Operating consistently in `float32` rather than `float64`.
 3. **Solver configuration & loop efficiency:** Enforcing a fixed time step `dt = 0.1` for Euler integration and pre-allocating repeated target batch tensors to avoid redundant allocations during loss computation.
 
-Benchmarking against the base implementation on synthetic trajectories demonstrates an empirical speedup of $138\times$ (reducing per-epoch training time from $1.84\text{s}$ down to $0.013\text{s}$ on the reference CPU), bringing 1,000 epochs of Neural SDE training down to under 40 seconds.
+Benchmarking against the base implementation on synthetic trajectories demonstrates an empirical speedup of $138\times$ (reducing per-epoch training time from $1.84\text{s}$ down to $0.013\text{s}$ on the reference CPU), bringing 1,000 epochs of Neural SDE training down to under 40 seconds. While base `NeuralSDE` serves as a simple double-precision reference for small prototypes, `FastNeuralSDE` is the recommended default for production workflows, longer series, and large cohort training.
 
 ### Reproducibility and wall-clock timings
 
@@ -184,7 +184,7 @@ pip install nodefit
 
 ### Sample Code
 
-The following example demonstrates how to use NODEFit to fit a Neural SDE to a 2D trajectory with noise, showcasing how the high-level API makes it remarkably easy to fit complex time-series data.
+The following example demonstrates how to use NODEFit to fit a Neural SDE to a 2D trajectory with noise using the base `NeuralSDE` class:
 
 ```python
 import numpy as np
