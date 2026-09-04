@@ -285,9 +285,32 @@ def _panel_label(ax, text):
 
 
 def plot_raw_panel(ax, result, ylabel=True, xlabel=True, legend=False):
-    ax.plot(result["t_raw"], result["voltage"], color="#2d3748", lw=0.8)
-    ax.plot(result["peak_times"], result["voltage"][result["peaks"]], "r^", markersize=4.0, label="Detected R-peaks")
-    ax.axvline(TRAIN_END_S, color="0.45", linestyle="-.", lw=1.1, label=r"Forecast horizon ($t=6$s)")
+    lead = result["lead"]
+    t_raw = result["t_raw"]
+    volt = result["voltage"]
+    ax.plot(t_raw, volt, color="#4a5568", lw=0.75, label="ECG waveform", zorder=2)
+    ax.plot(result["peak_times"], volt[result["peaks"]], "r^", markersize=4.0, label="Detected R-peaks", zorder=4)
+    ax.axvline(TRAIN_END_S, color="0.45", linestyle="-.", lw=1.1, label=r"Forecast horizon ($t=6$s)", zorder=3)
+
+    # Highlight a representative QRS complex interval (~1.45s to 1.60s) in distinct color
+    qrs_mask = (t_raw >= 1.45) & (t_raw <= 1.60)
+    ax.plot(t_raw[qrs_mask], volt[qrs_mask], color="#3182ce", lw=1.8, label="QRS complex (sample)", zorder=3)
+
+    # Annotation arrow pointing to the R-peak of this QRS complex (placed cleanly inside plot area without title clash)
+    qrs_t = result["peak_times"][2]  # ~ 1.53s
+    qrs_v = volt[result["peaks"][2]]
+    ax.annotate(
+        f"QRS deflection\n({qrs_v:.2f} mV)",
+        xy=(qrs_t, qrs_v),
+        xytext=(qrs_t + 1.1, 0.75 if lead == "V5" else 0.65),
+        arrowprops=dict(arrowstyle="->", color="#2b6cb0", lw=1.3),
+        fontsize=8.5,
+        fontweight="bold",
+        color="#2c5282",
+        bbox=dict(boxstyle="round,pad=0.22", facecolor="#ebf8ff", edgecolor="#90cdf4", alpha=0.95),
+        zorder=5,
+    )
+
     if ylabel:
         ax.set_ylabel("Voltage (mV)", fontsize=12)
     if xlabel:
@@ -296,7 +319,7 @@ def plot_raw_panel(ax, result, ylabel=True, xlabel=True, legend=False):
     ax.tick_params(labelsize=12)
     ax.grid(True, alpha=0.3)
     if legend:
-        ax.legend(loc="upper right", fontsize=12)
+        ax.legend(loc="upper right", fontsize=11)
 
 
 def plot_sde_panel(ax, result, xlabel=True, legend=False):
@@ -383,24 +406,24 @@ def save_combined_figures(results):
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     by_lead = {r["lead"]: r for r in results}
 
-    fig_raw, axes_raw = plt.subplots(1, 2, figsize=(7.5, 2.7), sharey=True)
+    fig_raw, axes_raw = plt.subplots(1, 2, figsize=(8.2, 3.2), sharey=True)
     for ax, lead, tag in zip(axes_raw, ("II", "V5"), ("a", "b")):
         plot_raw_panel(ax, by_lead[lead], ylabel=(lead == "II"), legend=False)
         _panel_label(ax, f"({tag}) Lead {lead}")
     vmin = min(by_lead[lead]["voltage"].min() for lead in ("II", "V5"))
     vmax = max(by_lead[lead]["voltage"].max() for lead in ("II", "V5"))
-    axes_raw[0].set_ylim(vmin - 0.08, vmax + 0.12)
+    axes_raw[0].set_ylim(vmin - 0.08, vmax + 0.35)
     handles, labels = axes_raw[0].get_legend_handles_labels()
     fig_raw.legend(
         handles,
         labels,
         loc="upper center",
-        fontsize=12,
-        ncol=2,
+        fontsize=10.0,
+        ncol=4,
         frameon=False,
-        bbox_to_anchor=(0.5, 1.15),
+        bbox_to_anchor=(0.5, 0.99),
     )
-    fig_raw.tight_layout()
+    fig_raw.tight_layout(rect=(0, 0, 1, 0.90))
     out_raw = RESULTS_DIR / COMBINED_RAW
     fig_raw.savefig(out_raw, dpi=200, bbox_inches="tight")
     plt.close(fig_raw)
