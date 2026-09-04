@@ -129,12 +129,12 @@ Similar to the deterministic case, the stochastic adjoint sensitivity method avo
 
 #### Memory Efficiency Trade-offs
 
-The primary advantage of the adjoint methods used in NODEFit is the reduction in memory overhead. The following table summarizes the theoretical scaling and computational trade-offs between the naive backpropagation approach and the adjoint-based methods implemented in `torchdiffeq` and `torchsde`.
+The primary advantage of the adjoint methods leveraged by NODEFit is the reduction in memory overhead. The mathematical adjoint formulation (integrating the adjoint state backwards in time) and the Virtual Brownian Tree noise reconstruction are implemented within the underlying PyTorch differential equation ecosystem (`torchdiffeq` and `torchsde`). The following table summarizes the theoretical scaling and computational trade-offs between standard naive backpropagation and the adjoint-based sensitivity methods in PyTorch.
 
-:::{table} Comparison of memory efficiency and computational trade-offs between naive backpropagation and the adjoint sensitivity method.
+:::{table} Comparison of memory efficiency and computational trade-offs between naive backpropagation and the adjoint sensitivity method in PyTorch.
 :label: table:memory_comparison
 
-| Feature | Naive Backprop | Adjoint Method (NODEFit) |
+| Feature | Naive Backprop | Adjoint Method (PyTorch) |
 | :--- | :--- | :--- |
 | **Intermediate States** | Stored in memory | Reconstructed on the fly |
 | **Memory Scaling** | $O(N)$ (Linear with steps) | $O(1)$ (Constant with steps) |
@@ -142,6 +142,8 @@ The primary advantage of the adjoint methods used in NODEFit is the reduction in
 | **Computational Trade-off** | Faster (no reconstruction) | Slower (requires solving backwards) |
 | **Error Sensitivity** | Standard backpropagation | Possible sensitivity to errors in back propagation |
 :::
+
+While the $O(1)$ asymptotic memory scaling is delivered by the underlying PyTorch solvers, NODEFit's contribution lies in wrapping these complex mathematical engines into an accessible interface and optimizing their execution for large-scale applied workflows.
 
 ### Performance Optimizations
 
@@ -289,11 +291,17 @@ Neural SDE fit on a complex 2D trajectory. The dotted black line represents the 
 
 ### Clinical Case Study: Stochastic Heart Rate Dynamics in Atrial Fibrillation
 
-To evaluate NODEFit on a live clinical research dataset, we analyzed an electrocardiogram (ECG) recording from the open-source PTB-XL database [@wagner2020ptbxl; @goldberger2000physiobank]. In patients diagnosed with cardiac arrhythmias such as atrial fibrillation (AFIB), the sinoatrial node fires irregularly, producing stochastic fluctuations in the beat-to-beat interval ($RR$) and instantaneous heart rate alongside baseline sensor and environmental noise. Clinical reading typically pairs a limb rhythm lead with a left-precordial chest lead, so we used Lead II and Lead V5 of PTB-XL record #16834 (@fig:ptbxl_raw). Lead V5 sits over the left ventricle and shows the textbook QRST complex, and on this record, its QRS deflections are taller and cleaner than on Lead II, while R-peak detection recovers the same 18 irregular beats on both leads.
+To evaluate NODEFit on a live clinical research dataset, we analyzed an electrocardiogram (ECG) recording from the open-source PTB-XL database [@wagner2020ptbxl; @goldberger2000physiobank]. In patients diagnosed with cardiac arrhythmias such as atrial fibrillation (AFIB), the sinoatrial node fires irregularly, producing stochastic fluctuations in the beat-to-beat interval ($RR$) and instantaneous heart rate alongside baseline sensor and environmental noise. 
+
+An ECG measures the cardiac electrical conduction cycle, characterized by the P-Q-R-S-T sequence: the P wave reflects atrial depolarization, the QRS complex corresponds to rapid ventricular depolarization, and the T wave represents ventricular repolarization[^ecg-ref]. 
+
+Clinical interpretation typically pairs a limb rhythm lead with a left-precordial chest lead, so we evaluated Lead II and Lead V5 of PTB-XL record #16834 (@fig:ptbxl_raw). Because both leads were recorded simultaneously from the same patient on the same multi-channel device, the physiological heartbeats occur synchronously, and R-peak detection recovers the identical 18 irregular beats across both channels. However, Lead V5 is positioned directly over the left ventricle, yielding taller QRS voltage amplitudes ($0.82\text{ mV}$ peak vs. $0.56\text{ mV}$ on Lead II) and a cleaner signal-to-noise ratio than Lead II.
+
+[^ecg-ref]: For standard clinical definitions of the ECG waveform, cardiac conduction cycles, and lead placements, see Goldberger et al. [@goldberger2017clinical].
 
 :::{figure} results/ptbxl_ecg_raw_combined.png
 :label: fig:ptbxl_raw
-Ten-second clinical ECG from PTB-XL record #16834 (500 Hz). (a) Lead II. (b) Lead V5. Red triangles mark detected R-peaks; the vertical line at $t=6\text{s}$ is the forecast horizon used below.
+Ten-second clinical ECG from PTB-XL record #16834 (500 Hz). (a) Lead II. (b) Lead V5. Red triangles mark detected R-peaks; blue highlighted segments and arrows indicate a representative QRS deflection ($0.56\text{ mV}$ on Lead II vs. $0.82\text{ mV}$ on Lead V5); the vertical dash-dotted line at $t=6\text{s}$ marks the forecast horizon.
 :::
 
 Traditional discrete-time autoregressive models struggle with continuous physiological processes because observation intervals in biological time series vary continuously. In contrast, continuous-time Neural SDEs naturally operate over arbitrary time coordinates. Instantaneous heart rate is derived from RR intervals, so the two leads describe the same arrhythmia when peaks are detected reliably. For each lead we interpolated a dense continuous heart-rate trajectory, trained a compact Neural SDE on the first 6 seconds ($t \le 6\text{s}$, $N=57$), and held out the remainder ($t > 6\text{s}$, $N=33$), as shown in @fig:ptbxl_sde. As a deterministic baseline, `scipy.optimize.curve_fit` with a cubic polynomial was fitted over the same training window.
@@ -339,6 +347,10 @@ To examine how predictive uncertainty evolves into the unobserved future, @fig:p
 
 These cohort-wide results confirm that continuous-time Neural SDEs provide robust trajectory modeling and calibrated uncertainty quantification across large, heterogeneous clinical datasets.
 
+### Future Works with ECG signals
+
+In our future works, we will test our software against additional benchmarks that are better suited for ECG signal comparisons. Examples of functions include: sines, cosines, dying exponentials, constants, negative powers, etc., as suggested by a reviewer.
+
 ## Conclusion
 
 NODEFit offers a user-friendly and powerful tool for fitting continuous-time models to time-series data. By leveraging Neural ODEs and SDEs, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
@@ -352,6 +364,8 @@ Network capacity deserves equal attention. The drift and diffusion networks shou
 ## CRediT authorship contribution statement
 
 **Pavan B. Govindaraju**: Conceptualization, Data curation, Formal analysis, Investigation, Methodology, Software, Validation, Visualization, Writing – original draft, Writing – review & editing.
+
+## GenAI Policy
 
 Portions of this work were assisted using generative AI tool - Cursor. The tools were used for drafting text, refining language, or generating code suggestions. All outputs were reviewed, verified, and revised by the author(s), who take full responsibility for the accuracy and integrity of the final content.
 
