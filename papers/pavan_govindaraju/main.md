@@ -26,7 +26,7 @@ PySINDy [@desilva2020pysindy] recovers ODEs by sparse regression onto a user-spe
 
 NODEFit packages these ideas for practitioners. After installing the package, a user passes time-series data, specifies compact drift and diffusion networks, and calls `train` and `extrapolate`. The package owns the training loop, observation batching, and coordinated updates of drift and diffusion parameters, so the user does not assemble adjoint code, Brownian-tree bookkeeping, or separate optimizer groups. That interface is what distinguishes NODEFit from calling `torchdiffeq` or `torchsde` directly. Benchmarks in this paper show that the resulting continuous-time fits recover the underlying kinetics and extrapolate reliably on the motivating example above, which polynomial, template-based, and discrete-time alternatives struggle to match without prior knowledge of the governing equations.
 
-The remainder of the paper is organized as follows. Methods defines the continuous-time and stochastic models, training objective, and adjoint backpropagation. Implementation describes the solver dependencies, memory-saving methods, installation, and example API. Results evaluates NODEFit's PyTorch-based Neural ODEs and SDEs on deterministic and stochastic benchmarks, including a reconstruction of the classical Lotka–Volterra population model, recovery of noisy dynamics, and clinical case and cohort studies modeling cardiac arrhythmias on PTB-XL ECG data[^ptbxl-data] (@sec:cohort). The Appendix provides additional background on the stochastic calculus used by the SDE adjoint.
+The remainder of the paper is organized as follows. Methods defines the continuous-time and stochastic models, training objective, and adjoint backpropagation. Implementation describes the solver dependencies, memory-saving methods, installation, and example API. Results evaluates NODEFit's PyTorch-based Neural ODEs and SDEs on deterministic and stochastic benchmarks, including a reconstruction of the classical Lotka–Volterra population model, recovery of noisy dynamics, and clinical case and cohort studies modeling cardiac arrhythmias on PTB-XL ECG data[^ptbxl-data] (see [Section 4.6](#sec:cohort)). The Appendix provides additional background on the stochastic calculus used by the SDE adjoint.
 
 [^ptbxl-data]: PTB-XL version 1.0.3 is available from PhysioNet at <https://physionet.org/content/ptb-xl/1.0.3/>.
 
@@ -183,7 +183,7 @@ NODEFit can be installed via `pip`:
 pip install nodefit
 ```
 
-- **Python and PyTorch Versions**: NODEFit requires Python $\ge 3.8$ and PyTorch $\ge 1.12$ (compatible with PyTorch 2.x). Core dependencies including `torchdiffeq`, `torchsde`, `numpy` and `matplotlib`, are installed automatically.
+- **Python and PyTorch Versions**: NODEFit requires Python $\ge 3.8$ and PyTorch $\ge 1.12$ (compatible with PyTorch 2.x). Core dependencies, including `torchdiffeq`, `torchsde`, `numpy` and `matplotlib`, are installed automatically.
 - **Hardware Requirements**: A dedicated GPU is optional. Because the neural vector fields and diffusion networks for typical continuous-time dynamical systems are relatively compact (often 1–3 shallow layers with modest hidden dimensions), CPU-only usage is fully supported and fast (e.g., all benchmark models in this paper train in under a minute on a standard laptop CPU). When available, GPU acceleration (via CUDA or Apple Silicon MPS) can be utilized seamlessly by placing tensors and modules on the target device using standard PyTorch semantics.
 
 ### Sample Code
@@ -229,8 +229,8 @@ sde.train(num_epochs=500, print_every=100)
 extrapolated = sde.extrapolate(tf=8, npts=40)
 ```
 
-## Results
 (sec:results)=
+## Results
 
 We evaluated NODEFit's PyTorch-based Neural ODEs and SDEs on both deterministic and stochastic benchmarks drawn from the motivating scenario in the Introduction: coupled states approaching saturation with optional noise. The models were trained using the Adam optimizer with default learning rates. In each case, the goal is not merely to interpolate scattered points but to recover a coherent evolution law that extrapolates beyond $t = 5$. @fig:ode_results through @fig:trajectory_results illustrate settings where conventional curve fitting would require the correct functional template *a priori*, and where treating noise as homoscedastic regression error would misrepresent uncertainty during the forecast.
 
@@ -315,8 +315,8 @@ The cubic polynomial overfits local curvature during training and inflects rigid
 Continuous-time instantaneous heart rate from record #16834. (a) Lead II. (b) Lead V5. Black dots are training observations ($t \le 6\text{s}$, $N=57$), blue squares are held-out future observations ($t > 6\text{s}$, $N=33$), open red circles are discrete beats, the red dashed curve is the `curve_fit` cubic baseline, and the solid blue curve with shaded bands is the Neural SDE mean and diffusion ($\pm 1\sigma$, $\pm 2\sigma$).
 :::
 
-### Large-Scale Cohort Benchmark on PTB-XL
 (sec:cohort)=
+### Large-Scale Cohort Benchmark on PTB-XL
 
 To assess whether these continuous-time stochastic dynamics generalize across diverse clinical populations, we scaled the evaluation to a cohort sampled from 2,000 unique patient records in PTB-XL. Because limb lead II and precordial lead V5 exhibit distinct signal morphologies and noise characteristics, we analyzed both leads independently across the cohort. Approximately $55\%$ of the cohort comprises patients with normal sinus rhythm (`NORM`), while $45\%$ presents diagnostic abnormalities including atrial fibrillation, conduction blocks, and myocardial infarctions.
 
@@ -356,13 +356,13 @@ In our future work, we will test our software against additional benchmarks that
 
 ## Conclusion
 
-NODEFit offers a user-friendly and time saving tool for fitting continuous-time models to time-series data. By leveraging PyTorch's Neural ODEs and SDEs libraries, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
+NODEFit offers a user-friendly and time-saving tool for fitting continuous-time models to time-series data. By leveraging PyTorch's Neural ODE and SDE libraries, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
 
-For practitioners deciding whether to use NODEFit's PyTorch-based Neural ODEs and SDEs, the central question is whether the data plausibly arise from a smooth, Markovian continuous-time process. If polynomial regression, splines, `scipy.optimize.curve_fit` with a hand-chosen template, or PySINDy with a library that already contains the true terms produce stable fits and credible extrapolations, a Neural ODE may be unnecessary. PySINDy is the better choice when an interpretable sparse equation in a known basis is the goal. Consider NODEFit when those tools leave systematic residuals, extrapolations diverge from physical expectations, or the functional form of the dynamics is unknown, including stochastic processes where a diffusion network is needed. Template-based fits must guess a closed-form expression or a candidate library, whereas a Neural ODE learns a single vector field coupling all states.
+For practitioners deciding whether to use NODEFit's PyTorch-based Neural ODEs and SDEs, the central question is whether the data plausibly arise from a smooth, Markovian continuous-time process. If polynomial regression, splines, `scipy.optimize.curve_fit` with a hand-chosen template, or PySINDy with a library that already contains the true terms produces stable fits and credible extrapolations, a Neural ODE may be unnecessary. PySINDy is the better choice when an interpretable sparse equation in a known basis is the goal. Consider NODEFit when those tools leave systematic residuals, extrapolations diverge from physical expectations, or the functional form of the dynamics is unknown, including stochastic processes where a diffusion network is needed. Template-based fits must guess a closed-form expression or a candidate library, whereas a Neural ODE learns a single vector field coupling all states.
 
 When observations are noisy, ask whether the noise reflects measurement error alone or variability intrinsic to the process. Ordinary least squares and deterministic Neural ODEs treat scatter as something to be averaged out. If uncertainty grows with state magnitude or if extrapolated forecasts should carry confidence intervals, a Neural SDE is the more appropriate model. The diffusion network learns state-dependent noise alongside the drift.
 
-The reason to use NODEFit rather than those PyTorch libraries directly is the wrapping workflow. NODEFit accepts NumPy times and states, standardizes the training loop, batches observations, and keeps drift and diffusion on coordinated optimizers so the user does not maintain those parameter groups by hand. The API is built for the actions that dominate applied fitting, such as, swapping a network's width or depth, retraining, and comparing extrapolations without changing solver settings. That matters most for large batch studies with extensive hyperparameter searches, such as the PTB-XL cohort applied one protocol to nearly 2,000 records (@sec:cohort) discussed in this paper. 
+The reason to use NODEFit rather than those PyTorch libraries directly is the wrapping workflow. NODEFit accepts NumPy times and states, standardizes the training loop, batches observations, and keeps drift and diffusion on coordinated optimizers so the user does not maintain those parameter groups by hand. The API is built for the actions that dominate applied fitting, such as swapping a network's width or depth, retraining, and comparing extrapolations without changing solver settings. That matters most for large batch studies with extensive hyperparameter searches, such as the PTB-XL cohort in [Section 4.6](#sec:cohort), which applied one protocol to nearly 2,000 records. 
 
 NODEFit is intended for scientists who need a Neural ODE or SDE fit without assembling adjoint code, Brownian-tree bookkeeping, and device transfers themselves. `FastNeuralSDE` is the NODEFit-specific execution path that reduces that cost further, with a measured $138\times$ speedup relative to the package's own reference `NeuralSDE` class.
 
@@ -372,7 +372,7 @@ NODEFit is intended for scientists who need a Neural ODE or SDE fit without asse
 
 ## GenAI Policy
 
-Portions of this work were assisted using generative AI tool, Cursor. The tool was used for drafting text, refining language, or generating code suggestions. All outputs were reviewed, verified, and revised by the author, who takes full responsibility for the accuracy and integrity of the final content.
+Portions of this work were assisted using a generative AI tool, Cursor. The tool was used for drafting text, refining language, or generating code suggestions. All outputs were reviewed, verified, and revised by the author, who takes full responsibility for the accuracy and integrity of the final content.
 
 ## Appendix: Stochastic Calculus and the Adjoint Method
 
