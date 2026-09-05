@@ -291,9 +291,9 @@ Neural SDE fit on a complex 2D trajectory. The dotted black line represents the 
 
 ### Clinical Case Study: Stochastic Heart Rate Dynamics in Atrial Fibrillation
 
-To evaluate NODEFit on a live clinical research dataset, we analyzed an electrocardiogram (ECG) recording from the open-source PTB-XL database [@wagner2020ptbxl; @goldberger2000physiobank]. In patients diagnosed with cardiac arrhythmias such as atrial fibrillation (AFIB), the sinoatrial node fires irregularly, producing stochastic fluctuations in the beat-to-beat interval ($RR$) and instantaneous heart rate alongside baseline sensor and environmental noise. 
+To evaluate NODEFit on a live clinical research dataset, we analyzed an electrocardiogram (ECG) recording from the open-source PTB-XL database [@wagner2020ptbxl; @goldberger2000physiobank]. In patients diagnosed with cardiac arrhythmias such as atrial fibrillation (AFIB), the sinoatrial node fires irregularly, producing stochastic fluctuations in the beat-to-beat interval ($RR$) and instantaneous heart rate alongside baseline sensor and environmental noise.
 
-An ECG measures the cardiac electrical conduction cycle, characterized by the P-Q-R-S-T sequence: the P wave reflects atrial depolarization, the QRS complex corresponds to rapid ventricular depolarization, and the T wave represents ventricular repolarization[^ecg-ref]. 
+An ECG measures the cardiac electrical conduction cycle, characterized by the P-Q-R-S-T sequence: the P wave reflects atrial depolarization, the QRS complex corresponds to rapid ventricular depolarization, and the T wave represents ventricular repolarization[^ecg-ref].
 
 Clinical interpretation typically pairs a limb rhythm lead with a left-precordial chest lead, so we evaluated Lead II and Lead V5 of PTB-XL record #16834 (@fig:ptbxl_raw). Because both leads were recorded simultaneously from the same patient on the same multi-channel device, the physiological heartbeats occur synchronously, and R-peak detection recovers the identical 18 irregular beats across both channels. However, Lead V5 is positioned directly over the left ventricle, yielding taller QRS voltage amplitudes ($0.82\text{ mV}$ peak vs. $0.56\text{ mV}$ on Lead II) and a cleaner signal-to-noise ratio than Lead II.
 
