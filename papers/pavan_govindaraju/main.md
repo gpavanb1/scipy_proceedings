@@ -142,7 +142,7 @@ The primary advantage of the adjoint methods leveraged by NODEFit is the reducti
 | **Memory Scaling** | $O(N)$ (Linear with steps) | $O(1)$ (Constant with steps) |
 | **Noise (SDEs)** | Must be stored for every step | Regenerated via Virtual Brownian Tree |
 | **Computational Trade-off** | Faster (no reconstruction) | Slower (requires solving backwards) |
-| **Error Sensitivity** | Standard backpropagation | Possible sensitivity to errors in back propagation |
+| **Error Sensitivity** | Standard backpropagation | Possible sensitivity to errors in backpropagation |
 :::
 
 While the $O(1)$ asymptotic memory scaling is delivered by the underlying PyTorch solvers, NODEFit's contribution lies in wrapping these complex mathematical engines into a single training API, coordinated drift and diffusion updates, observation batching, and the `FastNeuralSDE` execution path used for long series and large cohorts.
