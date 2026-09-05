@@ -353,7 +353,7 @@ In our future work, we will test our software against additional benchmarks that
 
 ## Conclusion
 
-NODEFit offers a user-friendly and powerful tool for fitting continuous-time models to time-series data. By leveraging Neural ODEs and SDEs, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
+NODEFit offers a user-friendly and time saving tool for fitting continuous-time models to time-series data. By leveraging PyTorch's Neural ODEs and SDEs libraries, it enables the discovery of governing laws from observations, bridging the gap between machine learning and physical modeling.
 
 For practitioners deciding whether to use NODEFit, the central question is whether the data plausibly arise from a smooth, Markovian continuous-time process. If polynomial regression, splines, `scipy.optimize.curve_fit` with a hand-chosen template, or PySINDy with a library that already contains the true terms produces stable fits and credible extrapolations, a Neural ODE may be unnecessary. PySINDy is the better choice when an interpretable sparse equation in a known basis is the goal. Consider NODEFit when those tools leave systematic residuals, extrapolations diverge from physical expectations, or the functional form of the dynamics is unknown, including stochastic processes where a diffusion network is needed. Template-based fits must guess a closed-form expression or a candidate library, whereas a Neural ODE learns a single vector field coupling all states.
 
